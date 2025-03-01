@@ -8,7 +8,6 @@ from Router.Params import param_router
 from Router.Report import report_router
 from Router.Client import client_router
 from pathlib import Path
-#
 
 
 route = Path.cwd()
