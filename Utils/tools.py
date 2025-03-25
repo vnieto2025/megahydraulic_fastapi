@@ -12,7 +12,7 @@ import os
 import smtplib
 from datetime import datetime
 from PyPDF2 import PdfWriter, PdfReader
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, legal
 from reportlab.pdfgen import canvas
 from io import BytesIO
 import textwrap
@@ -22,6 +22,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY
 from PIL import Image
+from datetime import datetime
 
 
 
@@ -78,6 +79,11 @@ class Tools:
         fecha_objeto = datetime.strptime(date, "%d-%m-%Y")
         fecha_formateada = fecha_objeto.strftime("%Y-%m-%d")
         return fecha_formateada
+
+    # Función para formatear los numeros    
+    def format_number(self, numero):
+        formateado = f"{numero:,.0f}".replace(",", ".")
+        return formateado
     
     # Función para generar un pdf
     def gen_pdf(self, data):
@@ -371,6 +377,219 @@ class Tools:
                 elif key["id"] == 5:
                     can.drawString(532, 572, "✔")
 
+    # Función para generar un pdf tipo acesco
+    def gen_pdf_acesco(self, data):
+
+        año, mes, dia = data['activity_date'].strftime("%Y-%m-%d").split("-")
+
+        # Ruta del archivo PDF original
+        original_pdf_path = os.path.join('Templates', 'Acesco_Template.pdf')
+
+        # Cargar el PDF original
+        reader = PdfReader(original_pdf_path)
+        writer = PdfWriter()
+
+        # Crear un buffer en memoria para el nuevo contenido
+        packet  = BytesIO()
+
+        # Crear un objeto canvas de ReportLab
+        pdf = canvas.Canvas(packet , pagesize=legal)
+        pdf.setFont('Helvetica', 7)
+
+        # Escribir datos en el PDF
+        pdf.setFillColorRGB(1, 1, 1)  # Blanco (RGB: 1,1,1)
+        pdf.drawString(95, 681, f"{data['id']}")
+        pdf.setFillColorRGB(0, 0, 0)  # Restaurar a negro después
+        pdf.drawString(95, 671, f"{data['client_line']}")
+        pdf.drawString(140, 652, f"{dia}")
+        pdf.drawString(175, 652, f"{mes}")
+        pdf.drawString(212, 652, f"{año}")
+        pdf.drawString(290, 662, "ATLÁNTICO")
+        pdf.drawString(290, 652, "MALAMBO")
+        pdf.drawString(412, 662, f"{data['buy_order']}")
+        pdf.drawString(382, 653, f"{data['position']}")
+        pdf.drawString(382, 643, f"{data['solped']}")
+        pdf.drawString(382, 633, f"{data['om']}")
+        pdf.drawString(95, 643, f"{data['client_name']}")
+        pdf.drawString(100, 633, f"{data['person_receive_name'].upper()}")
+        pdf.drawString(242, 642, f"{data['person_receive_name'].upper()}")
+        pdf.drawString(134, 610, f"{data['service_description'].upper()}")
+        pdf.drawString(412, 610, f"{self.format_number(data['service_value'])}")
+
+        y_position = 596
+        # Ajustamos informatión dinamicamente
+        self.ajust_long_text_acesco(
+            pdf,
+            data['information'], 
+            52, 
+            y_position, 
+            390
+        )
+
+        self.ajust_long_text_acesco(
+            pdf,
+            data['conclutions'], 
+            52, 
+            90, 
+            390
+        )
+
+        self.ajust_long_text_acesco(
+            pdf,
+            data['recommendations'], 
+            52, 
+            50, 
+            390
+        )
+
+        image_paths = data["files"]
+        if image_paths:
+            imagen_antes = image_paths[0]["path"]
+            imagen_despues = image_paths[1]["path"]
+            max_height = 60  # Altura mínima para imágenes
+
+            self.ajust_images_acesco(pdf, imagen_antes, x=100, y=330, max_height=max_height, page_height=legal[1])
+            self.ajust_images_acesco(pdf, imagen_despues, x=100, y=208, max_height=max_height, page_height=legal[1])
+
+        # Guardar el PDF con los datos escritos en el buffer
+        pdf.save()
+
+        # Mover el buffer al principio
+        packet.seek(0)
+
+        # Leer el nuevo PDF con los datos
+        new_pdf = PdfReader(packet)
+
+        # Escribir en la segunda página del template
+        packet_2 = BytesIO()
+        pdf_2 = canvas.Canvas(packet_2, pagesize=legal)
+        pdf_2.setFont('Helvetica', 7)
+
+        # Escribir datos en la segunda página
+        pdf_2.drawString(80, 570, f"{data['tech_1']}")
+        pdf_2.drawString(315, 570, f"{data['tech_2']}")
+
+        # Guardar los cambios en el buffer
+        pdf_2.save()
+        packet_2.seek(0)
+        new_pdf_2 = PdfReader(packet_2)
+
+        # --- Mezclar las páginas con el template ---
+        for i, page in enumerate(reader.pages):
+            if i == 0:
+                page.merge_page(new_pdf.pages[0])  # Mezclar primera página
+            elif i == 1:
+                page.merge_page(new_pdf_2.pages[0])  # Mezclar segunda página
+
+            writer.add_page(page)
+
+        # Guardar el PDF final en memoria
+        output_buffer = BytesIO()
+        writer.write(output_buffer)
+
+        # Mover el buffer al principio
+        output_buffer.seek(0)
+
+        return output_buffer.read()
+    
+    # Función para ajustar textos largos del diseño de acesco
+    def ajust_long_text_acesco(self, can, text, x, y, max_width):
+        """
+        Función que ajusta el texto a varias líneas si es demasiado largo.
+        :param can: El objeto canvas de ReportLab.
+        :param text: El texto que se va a añadir.
+        :param x: La posición x en el PDF.
+        :param y: La posición y en el PDF.
+        :param max_width: El ancho máximo en píxeles para una línea de texto.
+        """
+        # Margen de seguridad para evitar desbordamiento
+        page_margin = 40  
+        max_width = min(max_width, legal[0] - x - page_margin)
+
+        # Dividir el texto en líneas usando el punto "." como separador
+        lines = text.split(".")
+        formatted_text = "<br/>".join(line.strip() + "." for line in lines if line.strip())
+
+        # Crear un estilo personalizado para la justificación
+        justified_style = ParagraphStyle(
+            name='Justified',
+            fontName='Helvetica',
+            fontSize=8,
+            leading=9,  # Espaciado entre líneas
+            alignment=TA_JUSTIFY,  # 4 = Justificado
+            spaceAfter=6,  # Espaciado después del párrafo
+        )
+
+        # Crear el párrafo justificado
+        paragraph = Paragraph(f"{formatted_text}", justified_style)
+
+        # Calcular el tamaño del párrafo
+        text_width, text_height = paragraph.wrapOn(can, max_width, 0)
+
+        # Dibujar el texto justificado en el canvas
+        paragraph.drawOn(can, x, y - text_height + 5)
+
+        return y - text_height + 15  # Retornar la nueva posición Y
+
+    # Función para ajustar las imagenes del diseño de acesco
+    def ajust_images_acesco(self, can, imagen, x, y, max_height, page_height):
+        """
+        Función para agregar imágenes al PDF, comenzando siempre desde la segunda página.
+        :param can: El objeto canvas de ReportLab.
+        :param imagen: imágen.
+        :param x: Posición x en el PDF.
+        :param y: Posición y en el PDF.
+        :param max_height: Altura máxima de una imagen.
+        :param page_height: Altura total de la página.
+        :return: La nueva coordenada y después de agregar las imágenes.
+        """
+
+        page_width, _ = legal  # Obtener el ancho de la página estándar 'legal'
+
+        # Configurar estilo para el texto
+        styles = getSampleStyleSheet()
+
+        try:
+
+            # Obtener dimensiones reales de la imagen
+            with Image.open(imagen) as img:
+                orig_width, orig_height = img.size
+
+            # Calcular la escala para mantener la proporción
+            scale_factor = min(300 / orig_width, max_height / orig_height) * 1.5
+
+            # Calcular el nuevo tamaño proporcional
+            img_width = orig_width * scale_factor
+            img_height = orig_height * scale_factor
+
+            # Calcular posición x centrada
+            centered_x = (page_width - img_width) / 2.5
+
+            # Dibujar un borde antes de la imagen
+            border_margin = 5
+            can.setStrokeColorRGB(0, 0, 0)  # Color negro para el borde
+            can.rect(centered_x - border_margin, y - img_height - border_margin, 
+                    img_width + (border_margin * 2), img_height + (border_margin * 2), 
+                    stroke=1, fill=0)
+
+            # Dibujar la imagen centrada
+            can.drawImage(imagen, centered_x, y - img_height, width=img_width, height=img_height)
+
+            # Actualizar la posición 'y'
+            y -= img_height + 100  # Espaciado entre imágenes
+
+            # Verificar si necesitamos una nueva página
+            if y - img_height < 50:  # Si no hay espacio suficiente
+                can.showPage()
+                y = page_height - 50  # Reiniciar 'y' para la nueva página
+
+        except Exception as e:
+            print(f"Error al dibujar la imagen {imagen}: {e}")
+            raise CustomException(f"Error al dibujar la imagen {imagen}: {e}")
+
+        return y  # Devuelve la posición final de 'y'
+    
+    
     # """ Obtener archivo"""
     # def get_file_b64(self, file_path):
     #     with open(file_path, "rb") as file:

@@ -317,12 +317,11 @@ class Querys:
             session.add(report)
             session.commit()
             report_id = report.id
+            return report_id
         except Exception as ex:
             raise CustomException(str(ex))
         finally:
             session.close()
-        
-        return report_id
     
     # Query for types maintenances.
     def insert_report_details(self, data: dict):
@@ -344,12 +343,12 @@ class Querys:
             session.add(model_data)
             session.commit()
             model_id = model_data.id
+            return model_id
         except Exception as ex:
+            print(str(ex))
             raise CustomException(str(ex))
         finally:
             session.close()
-        
-        return model_id
 
     # switching rows in 0 status.
     def deactive_data(self, model: any, report_id: dict):
@@ -575,6 +574,7 @@ class Querys:
                 ClientLinesModel.status == 1,
                 ClientUserModel.status == 1,
                 TypeEquipmentModel.status == 1,
+                ReportModel.type_report == 0,
                 UserModel.status == 1,
                 ReportModel.status == 1
             )
@@ -1008,3 +1008,79 @@ class Querys:
             session.close()
         
         return True
+
+    # Query for get the data for the report
+    def get_data_report_acesco(self, report_id):
+
+        try:
+
+            response = dict()
+                    
+            query = session.query(
+                ReportModel.id, 
+                ReportModel.activity_date,
+                ReportModel.client_id,
+                ClientModel.name.label('client_name'),
+                ReportModel.client_line_id,
+                ClientLinesModel.name.label('client_line'),
+                ReportModel.person_receives.label('person_receive_id'),
+                ClientUserModel.full_name.label('person_receive_name'),
+                ReportModel.om,
+                ReportModel.solped,
+                ReportModel.buy_order,
+                ReportModel.position,
+                ReportModel.service_description,
+                ReportModel.information,
+                ReportModel.service_value,
+                ReportModel.conclutions,
+                ReportModel.recommendations,
+                ReportModel.tech_1,
+                ReportModel.tech_2,
+            ).join(
+                ClientModel, 
+                ClientModel.id == ReportModel.client_id,
+                isouter=True
+            ).join(
+                ClientLinesModel, 
+                ClientLinesModel.id == ReportModel.client_line_id,
+                isouter=True
+            ).join(
+                ClientUserModel, 
+                ClientUserModel.id == ReportModel.person_receives,
+                isouter=True
+            ).filter(
+                ClientModel.status == 1,
+                ClientLinesModel.status == 1,
+                ClientUserModel.status == 1,
+                ReportModel.id == report_id,
+                ReportModel.status == 1
+            ).first()
+
+            # ✅ Convertir directamente en un diccionario
+            response = query._asdict() if query else {}
+            
+            if response:
+                files = list()
+
+                query3 = session.query(
+                    ReportFilesModel.id, ReportFilesModel.path,
+                ).filter(
+                    ReportFilesModel.report_id == report_id,
+                    ReportFilesModel.status == 1
+                ).all()
+
+                if query3:
+                    for key in query3:
+                        files.append({
+                            "id": key.id,
+                            "path": key.path
+                        })
+
+                response.update({"files": files})
+
+        except Exception as ex:
+            raise CustomException(str(ex))
+        finally:
+            session.close()
+
+        return response

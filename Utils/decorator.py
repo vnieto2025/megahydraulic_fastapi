@@ -91,11 +91,11 @@ def http_decorator(func):
                         resultado = tool.output(codigo, message, data)
 
                     if isinstance(resultado, StreamingResponse):
-                        if request.url.path == "/reports/generate_report" :
+                        if request.url.path == "/reports/generate_report" or request.url.path == "/reports/generate_report_acesco":
                             if "flag" in body and body["flag"]:
                                 contenido = "IMPRIMIENDO PDF"
                     else:
-                        if request.url.path == "/reports/create_report" or request.url.path == "/reports/edit_report":
+                        if request.url.path == "/reports/create_report" or request.url.path == "/reports/edit_report" or request.url.path == "/reports/create_report_acesco":
                             body.pop("files")
                         # Acceder al contenido del JSONResponse
                         contenido_serializado = resultado.body  # Esto está en formato bytes

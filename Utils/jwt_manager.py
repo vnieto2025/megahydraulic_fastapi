@@ -8,8 +8,8 @@ load_dotenv()
 
 def create_token(data: dict):
 
-    # Establece el tiempo de expiración (30 minutos desde el momento actual)
-    expiration = datetime.now(timezone.utc) + timedelta(minutes=60)
+    # Establece el tiempo de expiración (120 minutos desde el momento actual)
+    expiration = datetime.now(timezone.utc) + timedelta(minutes=120)
     payload = {
         **data,
         "exp": expiration

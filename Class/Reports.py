@@ -48,6 +48,12 @@ class Report:
                 "equipment_name": data["equipment_name"],
                 "service_description": data["service_description"],
                 "information": data["information"],
+                "service_value": None,
+                "conclutions": None,
+                "recommendations": None,
+                "tech_1": None,
+                "tech_2": None,
+                "type_report": 0,
                 "user_id": data["user_id"]
             }
 
@@ -439,3 +445,146 @@ class Report:
         self.querys.change_status_report(report_id)
 
         return self.tools.output(200, "Reporte eliminado con exito.")
+
+    # Funcion for create a Acesco report
+    def create_report_acesco(self, data):
+
+        try:
+            data_save = {
+                "activity_date": self.tools.format_date(data["activity_date"]),
+                "client_id": data["client_id"],
+                "client_line_id": data["client_line_id"],
+                "person_receives": data["person_receives"],
+                "om": data["om"],
+                "solped": data["solped"],
+                "buy_order": data["buy_order"],
+                "position": data["position"],
+                "equipment_type_id": None,
+                "equipment_name": None,
+                "service_description": data["service_description"],
+                "information": data["information"],
+                "service_value": data["service_value"],
+                "conclutions": data["conclutions"],
+                "recommendations": data["recommendations"],
+                "tech_1": data["tech_1"],
+                "tech_2": data["tech_2"],
+                "type_report": 1,
+                "user_id": data["user_id"]
+            }
+
+            self.querys.check_param_exists(
+                ClientModel, 
+                data["client_id"], 
+                "Cliente"
+            )
+
+            self.querys.check_param_exists(
+                ClientLinesModel, 
+                data["client_line_id"], 
+                "Línea"
+            )
+
+            self.querys.check_param_exists(
+                ClientUserModel, 
+                data["person_receives"], 
+                "Persona que recibe"
+            )
+
+            id_report = self.querys.create_report(data_save)
+
+            imagenes = data["files"]
+            if imagenes:
+                self.proccess_images_acesco(id_report, imagenes)
+
+            return self.tools.output(201, "Reporte creado exitosamente.", id_report)
+
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Function for process image files base64 and save them
+    def proccess_images_acesco(self, id_report, imagenes):
+
+        # Procesar y guardar cada archivo de la lista "files"
+        for index, file_base64 in enumerate(imagenes):
+            isbase64 = True if file_base64.startswith("data:image/") else False
+
+            if not isbase64:
+                self.querys.find_image_and_update(id_report, file_base64)
+                continue
+                
+            try:
+                # Extraer el formato de la imagen
+                file_extension = self.extract_file_extension(file_base64)
+
+                # Eliminar el prefijo base64 antes de decodificar
+                base64_data = re.sub(r"^data:image/\w+;base64,", "", file_base64)
+
+                # Decodificar la imagen base64
+                file_data = base64.b64decode(base64_data)
+
+                # Open the image with Pillow
+                image = Image.open(io.BytesIO(file_data))
+
+                # Compress the image (resize or adjust quality)
+                compressed_image_io = io.BytesIO()
+                image = image.convert("RGB")  # Ensure the image is in RGB format (no alpha channel)
+                
+                # Save with compression
+                image.save(
+                    compressed_image_io,
+                    format="JPEG",  # Convert to JPEG for better compression
+                    optimize=True,
+                    quality=75  # Adjust the quality (lower = more compression)
+                )
+                compressed_image_io.seek(0)
+                compressed_data = compressed_image_io.read()
+
+            except Exception as e:
+                raise CustomException(f"Error al decodificar la imagen {index + 1}: {str(e)}")
+
+            # Generar un nombre único para cada archivo
+            file_name = f"{str(uuid.uuid4())}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, file_name)
+
+            # Guardar la imagen decodificada en el servidor
+            try:
+                with open(file_path, "wb") as file:
+                    file.write(compressed_data)
+            except Exception as e:
+                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
+
+            data_save = {
+                "report_id": id_report,
+                "path": file_path,
+                "description": None,
+            }
+            self.querys.insert_data(ReportFilesModel, data_save)
+
+        return True
+    
+    # Function for generate pdf of the acesco report
+    def generate_report_acesco(self, data: dict):
+
+        report_id = data["report_id"]
+        flag = data.get("flag", False)
+
+        data_report = self.querys.get_data_report_acesco(report_id)
+
+        pdf = self.tools.gen_pdf_acesco(data_report)
+
+        # Nombre del archivo pdf de salida
+        file_name = f"reporte_acesco_{data['report_id']}_{str(datetime.now())}.pdf"
+
+        # return self.tools.output(200, "Ok", data_report)
+        # return self.tools.outputpdf(200, file_name, pdf)
+        # Retornar el PDF como respuesta
+        if flag:
+            return StreamingResponse(
+                BytesIO(pdf),
+                headers={
+                    "Content-Disposition": f"attachment; filename={file_name}",
+                    "Content-Type": "application/pdf",
+                },
+            )
+        
+        return self.tools.output(200, "Ok", data_report)
