@@ -455,6 +455,7 @@ class Report:
                 "client_id": data["client_id"],
                 "client_line_id": data["client_line_id"],
                 "person_receives": data["person_receives"],
+                "work_zone": data["work_zone"],
                 "om": data["om"],
                 "solped": data["solped"],
                 "buy_order": data["buy_order"],
@@ -540,6 +541,7 @@ class Report:
                 compressed_data = compressed_image_io.read()
 
             except Exception as e:
+                print(e)
                 raise CustomException(f"Error al decodificar la imagen {index + 1}: {str(e)}")
 
             # Generar un nombre único para cada archivo
@@ -551,6 +553,7 @@ class Report:
                 with open(file_path, "wb") as file:
                     file.write(compressed_data)
             except Exception as e:
+                print(e)
                 raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
 
             data_save = {
@@ -588,3 +591,151 @@ class Report:
             )
         
         return self.tools.output(200, "Ok", data_report)
+
+    # Function for list the reports of acesco design
+    def list_report_acesco(self, data: dict):
+        
+        message = "Información de reportes generado correctamente."
+        limit = int(data["limit"])
+        page_position = int(data["position"])
+        state = data["state"]
+        filters = data["filters"]
+        user_id = int(data["user_id"])
+        reports_dict = list()
+        data_filter = list()
+        response = list()
+
+        filters = self.validate_filters(filters)
+        if filters:
+            data_filter = self.filter_class.get_filters(filters)
+
+        if page_position <= 0:
+            message = "El campo posición no es válido"
+            raise CustomException(message)
+        
+        if state:
+            reports = self.querys.list_reports_acesco(data, data_filter=data_filter)
+
+        if not state:
+            reports = self.querys.list_reports_acesco(
+                data, 
+                user_id, 
+                state , 
+                data_filter=data_filter
+            )
+
+        data_report = reports["reports"]
+        reg_cont = reports["reg_cont"]
+
+        if not data_report:
+            message = "No hay listado de reportes que mostrar."
+            return self.tools.output(200, message, data={
+            "total_registros": 0,
+            "total_pag": 0,
+            "posicion_pag": 0,
+            "reportes": []
+        })
+
+        for key in data_report:
+            first_name = str(key.first_name).upper()
+            last_name = str(key.last_name).upper()
+            response.append({
+                "id": key.id,
+                "activity_date": key.activity_date,
+                "client_name": key.client_name,
+                "client_line": key.client_line,
+                "person_receive_name": str(key.person_receive_name).upper(),
+                "work_zone": key.work_zone,
+                "om": key.om,
+                "solped": key.solped,
+                "buy_order": key.buy_order,
+                "position": key.position,
+                "user_name": f"{first_name} {last_name}"
+            })
+
+        if reg_cont%limit == 0:
+            total_pag = reg_cont//limit
+        else:
+            total_pag = reg_cont//limit + 1
+
+        if total_pag < int(page_position):
+            message = "La posición excede el número total de registros."
+            return self.tools.output(200, message, data={
+            "total_registros": 0,
+            "total_pag": 0,
+            "posicion_pag": 0,
+            "reportes": []
+        })
+
+        reports_dict = {
+            "total_registros": reg_cont,
+            "total_pag": total_pag,
+            "posicion_pag": page_position,
+            "reportes": response
+        }
+
+        return self.tools.output(200, message, reports_dict)
+
+    # Function for edit existing reporte
+    def edit_report_acesco(self, data: dict):
+        
+        try:
+            data_save = {
+                "report_id": data["report_id"],
+                "activity_date": self.tools.format_date(data["activity_date"]),
+                "client_id": data["client_id"],
+                "client_line_id": data["client_line_id"],
+                "person_receives": data["person_receives"],
+                "work_zone": data["work_zone"],
+                "om": data["om"],
+                "solped": data["solped"],
+                "buy_order": data["buy_order"],
+                "position": data["position"],
+                "service_description": data["service_description"],
+                "information": data["information"],
+                "service_value": data["service_value"],
+                "conclutions": data["conclutions"],
+                "recommendations": data["recommendations"],
+                "tech_1": data["tech_1"],
+                "tech_2": data["tech_2"],
+                "user_id": data["user_id"]
+            }
+
+            self.querys.check_param_exists(
+                ReportModel, 
+                data["report_id"], 
+                "Reporte"
+            )
+
+            self.querys.check_param_exists(
+                ClientModel, 
+                data["client_id"], 
+                "Cliente"
+            )
+
+            self.querys.check_param_exists(
+                ClientLinesModel, 
+                data["client_line_id"], 
+                "Línea"
+            )
+
+            self.querys.check_param_exists(
+                ClientUserModel, 
+                data["person_receives"], 
+                "Persona que recibe"
+            )
+
+            self.querys.edit_report_acesco(data_save)
+
+            imagenes = data["files"]
+            if imagenes:
+                self.querys.deactive_data(ReportFilesModel, data["report_id"])
+                self.proccess_images_acesco(data["report_id"], imagenes)
+            else:
+                self.querys.deactive_data(ReportFilesModel, data["report_id"])
+
+            return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
+
+        except Exception as ex:
+            print(ex)
+            raise CustomException(str(ex))

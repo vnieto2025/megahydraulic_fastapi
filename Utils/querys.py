@@ -1025,6 +1025,7 @@ class Querys:
                 ClientLinesModel.name.label('client_line'),
                 ReportModel.person_receives.label('person_receive_id'),
                 ClientUserModel.full_name.label('person_receive_name'),
+                ReportModel.work_zone,
                 ReportModel.om,
                 ReportModel.solped,
                 ReportModel.buy_order,
@@ -1084,3 +1085,107 @@ class Querys:
             session.close()
 
         return response
+
+    # Query for get the reports according to case
+    def list_reports_acesco(self, data, user_id = None, state: bool = True, data_filter: list = []):
+        
+        try:
+            response = list()
+            query = session.query(
+                ReportModel.id, 
+                ReportModel.activity_date,
+                ClientModel.name.label('client_name'),
+                ClientLinesModel.name.label('client_line'),
+                ClientUserModel.full_name.label('person_receive_name'),
+                ReportModel.work_zone,
+                ReportModel.om,
+                ReportModel.solped,
+                ReportModel.buy_order,
+                ReportModel.position,
+                UserModel.first_name,
+                UserModel.last_name
+            ).join(
+                ClientModel, 
+                ClientModel.id == ReportModel.client_id,
+                isouter=True
+            ).join(
+                ClientLinesModel, 
+                ClientLinesModel.id == ReportModel.client_line_id,
+                isouter=True
+            ).join(
+                ClientUserModel, 
+                ClientUserModel.id == ReportModel.person_receives,
+                isouter=True
+            ).join(
+                UserModel, 
+                UserModel.id == ReportModel.user_id,
+                isouter=True
+            ).filter(
+                ClientModel.status == 1,
+                ClientLinesModel.status == 1,
+                ClientUserModel.status == 1,
+                ReportModel.type_report == 1,
+                UserModel.status == 1,
+                ReportModel.status == 1
+            )
+
+            if not state:
+                query = query.filter(
+                    ReportModel.user_id == user_id
+                )
+
+            if query:
+                if data_filter: query = query.filter(and_(*data_filter))
+                query = query.order_by(
+                    ReportModel.id.desc()
+                )
+            
+                reg_cont = query.count()
+
+                reports = query.limit(data["limit"]).offset(data["limit"]*(int(data["position"])-1))
+
+                response = {"reports": reports, "reg_cont": reg_cont}
+
+            return response
+
+        except Exception as ex:
+            raise CustomException(str(ex))
+        finally:
+            session.close()
+
+    # Query for update the information of report
+    def edit_report_acesco(self, data):
+        
+        try:
+            query = session.query(
+                ReportModel
+            ).filter(
+                ReportModel.id == data["report_id"],
+                ReportModel.status == 1
+            ).first()
+
+            if query:
+                query.activity_date = data["activity_date"]
+                query.client_id = data["client_id"]
+                query.client_line_id = data["client_line_id"]
+                query.person_receives = data["person_receives"]
+                query.work_zone = data["work_zone"]
+                query.om = data["om"]
+                query.solped = data["solped"]
+                query.buy_order = data["buy_order"]
+                query.position = data["position"]
+                query.service_description = data["service_description"]
+                query.information = data["information"]
+                query.service_value = data["service_value"]
+                query.conclutions = data["conclutions"]
+                query.recommendations = data["recommendations"]
+                query.tech_1 = data["tech_1"]
+                query.tech_2 = data["tech_2"]
+                session.commit()
+
+            return True
+                
+        except Exception as ex:
+            raise CustomException(str(ex))
+        finally:
+            session.close()

@@ -11,6 +11,7 @@ class ReportModel(BASE):
     client_id = Column(BigInteger, nullable=False)
     client_line_id = Column(BigInteger, nullable=False)
     person_receives = Column(String, nullable=False)
+    work_zone = Column(String, nullable=True)
     om = Column(String, nullable=True)
     solped = Column(String, nullable=True)
     buy_order = Column(String, nullable=True)
@@ -34,6 +35,7 @@ class ReportModel(BASE):
         self.client_id = data['client_id']
         self.client_line_id = data['client_line_id']
         self.person_receives = data['person_receives']
+        self.work_zone = data['work_zone']
         self.om = data['om']
         self.solped = data['solped']
         self.buy_order = data['buy_order']

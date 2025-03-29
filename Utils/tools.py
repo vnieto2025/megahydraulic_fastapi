@@ -409,12 +409,13 @@ class Tools:
         pdf.drawString(412, 662, f"{data['buy_order']}")
         pdf.drawString(382, 653, f"{data['position']}")
         pdf.drawString(382, 643, f"{data['solped']}")
+        pdf.drawString(295, 671, f"{data['work_zone']}")
         pdf.drawString(382, 633, f"{data['om']}")
         pdf.drawString(95, 643, f"{data['client_name']}")
         pdf.drawString(100, 633, f"{data['person_receive_name'].upper()}")
         pdf.drawString(242, 642, f"{data['person_receive_name'].upper()}")
         pdf.drawString(134, 610, f"{data['service_description'].upper()}")
-        pdf.drawString(412, 610, f"{self.format_number(data['service_value'])}")
+        pdf.drawString(404, 610, f"{self.format_number(data['service_value'])}")
 
         y_position = 596
         # Ajustamos informatión dinamicamente
