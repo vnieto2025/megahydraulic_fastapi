@@ -43,28 +43,28 @@ def change_status_report(request: Request):
     response = Report().change_status_report(data)
     return response
 
-@report_router.post('/reports/create_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@report_router.post('/reports/create_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def create_report_acesco(request: Request):
     data = getattr(request.state, "json_data", {})
     response = Report().create_report_acesco(data)
     return response
 
-@report_router.post('/reports/generate_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@report_router.post('/reports/generate_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def generate_report_acesco(request: Request):
     data = getattr(request.state, "json_data", {})
     response = Report().generate_report_acesco(data)
     return response
 
-@report_router.post('/reports/list_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@report_router.post('/reports/list_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def list_report_acesco(request: Request):
     data = getattr(request.state, "json_data", {})
     response = Report().list_report_acesco(data)
     return response
 
-@report_router.post('/reports/edit_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@report_router.post('/reports/edit_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def edit_report_acesco(request: Request):
     data = getattr(request.state, "json_data", {})
