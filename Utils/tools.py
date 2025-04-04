@@ -323,7 +323,7 @@ class Tools:
                     orig_width, orig_height = img.size
 
                 # Calcular la escala para mantener la proporción
-                scale_factor = min(300 / orig_width, max_height / orig_height) * 2.8
+                scale_factor = min(300 / orig_width, max_height / orig_height) * 2.5
 
                 # Calcular el nuevo tamaño proporcional
                 img_width = orig_width * scale_factor
