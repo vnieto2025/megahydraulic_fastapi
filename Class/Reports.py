@@ -40,6 +40,7 @@ class Report:
                 "client_id": data["client_id"],
                 "client_line_id": data["client_line_id"],
                 "person_receives": data["person_receives"],
+                "work_zone": None,
                 "om": data["om"],
                 "solped": data["solped"],
                 "buy_order": data["buy_order"],
