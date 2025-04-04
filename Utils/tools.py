@@ -323,7 +323,7 @@ class Tools:
                     orig_width, orig_height = img.size
 
                 # Calcular la escala para mantener la proporción
-                scale_factor = min(300 / orig_width, max_height / orig_height) * 1.5
+                scale_factor = min(300 / orig_width, max_height / orig_height) * 2.8
 
                 # Calcular el nuevo tamaño proporcional
                 img_width = orig_width * scale_factor
@@ -509,9 +509,11 @@ class Tools:
         page_margin = 40  
         max_width = min(max_width, legal[0] - x - page_margin)
 
-        # Dividir el texto en líneas usando el punto "." como separador
-        lines = text.split(".")
-        formatted_text = "<br/>".join(line.strip() + "." for line in lines if line.strip())
+        # Dividir el texto por saltos de línea para conservar párrafos
+        paragraphs = text.split("\n")
+
+        # Formatear los párrafos con doble salto de línea en HTML
+        formatted_text = "<br/><br/>".join(p.strip() for p in paragraphs if p.strip())
 
         # Crear un estilo personalizado para la justificación
         justified_style = ParagraphStyle(
