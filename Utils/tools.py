@@ -191,9 +191,11 @@ class Tools:
         page_margin = 40  
         max_width = min(max_width, letter[0] - x - page_margin)
 
-        # Dividir el texto en líneas usando el punto "." como separador
-        lines = text.split(".")
-        formatted_text = "<br/>".join(line.strip() + "." for line in lines if line.strip())
+        # Dividir el texto por saltos de línea para conservar párrafos
+        paragraphs = text.split("\n")
+
+        # Formatear los párrafos con doble salto de línea en HTML
+        formatted_text = "<br/><br/>".join(p.strip() for p in paragraphs if p.strip())
 
         # Crear un estilo personalizado para la justificación
         justified_style = ParagraphStyle(
