@@ -606,6 +606,7 @@ class Querys:
     # Query for find images and update the description.
     def find_image_and_update(self, report_id, img):
         
+        print(f"img: {img}")
         try:
             query = session.query(
                 ReportFilesModel
@@ -1189,3 +1190,25 @@ class Querys:
             raise CustomException(str(ex))
         finally:
             session.close()
+
+    # Query for find images and update them.
+    def find_image_and_update_version_two(self, report_id, img):
+        
+        try:
+            query = session.query(
+                ReportFilesModel
+            ).filter(
+                ReportFilesModel.report_id == report_id,
+                ReportFilesModel.path == img,
+            ).first()
+
+            if query:
+                query.status = 1
+                session.commit()
+                
+        except Exception as ex:
+            raise CustomException(str(ex))
+        finally:
+            session.close()
+        
+        return True

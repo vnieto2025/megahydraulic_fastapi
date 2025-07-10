@@ -21,6 +21,7 @@ import io
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from PIL import Image
+import traceback
 
 UPLOAD_FOLDER = "Uploads/"
 
@@ -503,68 +504,6 @@ class Report:
         except Exception as ex:
             raise CustomException(str(ex))
 
-    # Function for process image files base64 and save them
-    def proccess_images_acesco(self, id_report, imagenes):
-
-        # Procesar y guardar cada archivo de la lista "files"
-        for index, file_base64 in enumerate(imagenes):
-            isbase64 = True if file_base64.startswith("data:image/") else False
-
-            if not isbase64:
-                self.querys.find_image_and_update(id_report, file_base64)
-                continue
-                
-            try:
-                # Extraer el formato de la imagen
-                file_extension = self.extract_file_extension(file_base64)
-
-                # Eliminar el prefijo base64 antes de decodificar
-                base64_data = re.sub(r"^data:image/\w+;base64,", "", file_base64)
-
-                # Decodificar la imagen base64
-                file_data = base64.b64decode(base64_data)
-
-                # Open the image with Pillow
-                image = Image.open(io.BytesIO(file_data))
-
-                # Compress the image (resize or adjust quality)
-                compressed_image_io = io.BytesIO()
-                image = image.convert("RGB")  # Ensure the image is in RGB format (no alpha channel)
-                
-                # Save with compression
-                image.save(
-                    compressed_image_io,
-                    format="JPEG",  # Convert to JPEG for better compression
-                    optimize=True,
-                    quality=75  # Adjust the quality (lower = more compression)
-                )
-                compressed_image_io.seek(0)
-                compressed_data = compressed_image_io.read()
-
-            except Exception as e:
-                print(e)
-                raise CustomException(f"Error al decodificar la imagen {index + 1}: {str(e)}")
-
-            # Generar un nombre único para cada archivo
-            file_name = f"{str(uuid.uuid4())}.{file_extension}"
-            file_path = os.path.join(UPLOAD_FOLDER, file_name)
-
-            # Guardar la imagen decodificada en el servidor
-            try:
-                with open(file_path, "wb") as file:
-                    file.write(compressed_data)
-            except Exception as e:
-                print(e)
-                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
-
-            data_save = {
-                "report_id": id_report,
-                "path": file_path,
-                "description": None,
-            }
-            self.querys.insert_data(ReportFilesModel, data_save)
-
-        return True
     
     # Function for generate pdf of the acesco report
     def generate_report_acesco(self, data: dict):
@@ -738,5 +677,73 @@ class Report:
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 
         except Exception as ex:
-            print(ex)
+            traceback.print_exc()
+
+            # O si prefieres guardar el traceback como string:
+            error_trace = traceback.format_exc()
+            print(error_trace)
             raise CustomException(str(ex))
+
+    # Function for process image files base64 and save them
+    def proccess_images_acesco(self, id_report, imagenes):
+
+        # Procesar y guardar cada archivo de la lista "files"
+        for index, file_base64 in enumerate(imagenes):
+
+            isbase64 = True if file_base64.startswith("data:image/") else False
+
+            if not isbase64:
+                self.querys.find_image_and_update_version_two(id_report, file_base64)
+                continue
+                
+            try:
+                # Extraer el formato de la imagen
+                file_extension = self.extract_file_extension(file_base64)
+
+                # Eliminar el prefijo base64 antes de decodificar
+                base64_data = re.sub(r"^data:image/\w+;base64,", "", file_base64)
+
+                # Decodificar la imagen base64
+                file_data = base64.b64decode(base64_data)
+
+                # Open the image with Pillow
+                image = Image.open(io.BytesIO(file_data))
+
+                # Compress the image (resize or adjust quality)
+                compressed_image_io = io.BytesIO()
+                image = image.convert("RGB")  # Ensure the image is in RGB format (no alpha channel)
+                
+                # Save with compression
+                image.save(
+                    compressed_image_io,
+                    format="JPEG",  # Convert to JPEG for better compression
+                    optimize=True,
+                    quality=75  # Adjust the quality (lower = more compression)
+                )
+                compressed_image_io.seek(0)
+                compressed_data = compressed_image_io.read()
+
+            except Exception as e:
+                print(e)
+                raise CustomException(f"Error al decodificar la imagen {index + 1}: {str(e)}")
+
+            # Generar un nombre único para cada archivo
+            file_name = f"{str(uuid.uuid4())}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, file_name)
+
+            # Guardar la imagen decodificada en el servidor
+            try:
+                with open(file_path, "wb") as file:
+                    file.write(compressed_data)
+            except Exception as e:
+                print(e)
+                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
+
+            data_save = {
+                "report_id": id_report,
+                "path": file_path,
+                "description": None,
+            }
+            self.querys.insert_data(ReportFilesModel, data_save)
+
+        return True
