@@ -493,7 +493,47 @@ class Tools:
         # Mover el buffer al principio
         output_buffer.seek(0)
 
-        return output_buffer.read()
+        # --- Agregar anexos como páginas nuevas ---
+        anexos = data.get("anexos", [])
+        if anexos:
+            # Leer el PDF actual generado
+            output_buffer.seek(0)
+            final_reader = PdfReader(output_buffer)
+            final_writer = PdfWriter()
+            # Copiar las páginas existentes
+            for page in final_reader.pages:
+                final_writer.add_page(page)
+
+            for anexo in anexos:
+                packet_anexo = BytesIO()
+                pdf_anexo = canvas.Canvas(packet_anexo, pagesize=legal)
+                # Centrar y ajustar la imagen
+                try:
+                    from PIL import Image
+                    with Image.open(anexo["path"]) as img:
+                        orig_width, orig_height = img.size
+                    max_height = legal[1] - 100
+                    max_width = legal[0] - 100
+                    scale_factor = min(max_width / orig_width, max_height / orig_height)
+                    img_width = orig_width * scale_factor
+                    img_height = orig_height * scale_factor
+                    centered_x = (legal[0] - img_width) / 2
+                    centered_y = (legal[1] - img_height) / 2
+                    pdf_anexo.drawImage(anexo["path"], centered_x, centered_y, width=img_width, height=img_height)
+                except Exception as e:
+                    print(f"Error al agregar anexo {anexo['path']}: {e}")
+                pdf_anexo.save()
+                packet_anexo.seek(0)
+                anexo_pdf = PdfReader(packet_anexo)
+                final_writer.add_page(anexo_pdf.pages[0])
+
+            # Guardar el PDF final con anexos
+            output_buffer_final = BytesIO()
+            final_writer.write(output_buffer_final)
+            output_buffer_final.seek(0)
+            return output_buffer_final.read()
+        else:
+            return output_buffer.read()
     
     # Función para ajustar textos largos del diseño de acesco
     def ajust_long_text_acesco(self, can, text, x, y, max_width):

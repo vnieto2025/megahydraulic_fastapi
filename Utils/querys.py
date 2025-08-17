@@ -15,6 +15,7 @@ from Models.client_user_model import ClientUserModel
 from Models.report_model import ReportModel
 from Models.report_details_model import ReportDetailsModel
 from Models.report_files_model import ReportFilesModel
+from Models.report_attach_files_model import ReportAttachFilesModel
 from Models.module_model import ModulesModel
 from Models.permission_model import PermissionModel
 from sqlalchemy import func, and_
@@ -1063,6 +1064,7 @@ class Querys:
             
             if response:
                 files = list()
+                anexos = list()
 
                 query3 = session.query(
                     ReportFilesModel.id, ReportFilesModel.path,
@@ -1079,6 +1081,21 @@ class Querys:
                         })
 
                 response.update({"files": files})
+
+                query4 = session.query(
+                    ReportAttachFilesModel.id, ReportAttachFilesModel.path,
+                ).filter(
+                    ReportAttachFilesModel.report_id == report_id,
+                    ReportAttachFilesModel.status == 1
+                ).all()
+
+                if query4:
+                    for key in query4:
+                        anexos.append({
+                            "id": key.id,
+                            "path": key.path
+                        })
+                response.update({"anexos": anexos})
 
         except Exception as ex:
             raise CustomException(str(ex))
@@ -1192,14 +1209,14 @@ class Querys:
             session.close()
 
     # Query for find images and update them.
-    def find_image_and_update_version_two(self, report_id, img):
+    def find_image_and_update_version_two(self, model: any, report_id, img):
         
         try:
             query = session.query(
-                ReportFilesModel
+                model
             ).filter(
-                ReportFilesModel.report_id == report_id,
-                ReportFilesModel.path == img,
+                model.report_id == report_id,
+                model.path == img,
             ).first()
 
             if query:

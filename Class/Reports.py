@@ -11,6 +11,7 @@ from Models.type_equipment_model import TypeEquipmentModel
 from Models.task_list_model import TaskListModel
 from Models.report_type_service_model import ReportTypeServiceModel
 from Models.report_files_model import ReportFilesModel
+from Models.report_attach_files_model import ReportAttachFilesModel
 from Utils.rules import Rules
 from datetime import datetime
 import os
@@ -499,12 +500,15 @@ class Report:
             if imagenes:
                 self.proccess_images_acesco(id_report, imagenes)
 
+            anexos = data["anexos"]
+            if anexos:
+                self.proccess_attachs_acesco(id_report, anexos)
+
             return self.tools.output(201, "Reporte creado exitosamente.", id_report)
 
         except Exception as ex:
             raise CustomException(str(ex))
-
-    
+  
     # Function for generate pdf of the acesco report
     def generate_report_acesco(self, data: dict):
 
@@ -674,6 +678,13 @@ class Report:
             else:
                 self.querys.deactive_data(ReportFilesModel, data["report_id"])
 
+            anexos = data["anexos"]
+            if anexos:
+                self.querys.deactive_data(ReportAttachFilesModel, data["report_id"])
+                self.proccess_attachs_acesco(data["report_id"], anexos)
+            else:
+                self.querys.deactive_data(ReportAttachFilesModel, data["report_id"])
+
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 
         except Exception as ex:
@@ -693,7 +704,7 @@ class Report:
             isbase64 = True if file_base64.startswith("data:image/") else False
 
             if not isbase64:
-                self.querys.find_image_and_update_version_two(id_report, file_base64)
+                self.querys.find_image_and_update_version_two(ReportFilesModel, id_report, file_base64)
                 continue
                 
             try:
@@ -745,5 +756,68 @@ class Report:
                 "description": None,
             }
             self.querys.insert_data(ReportFilesModel, data_save)
+
+        return True
+
+    # Function for process image files base64 and save them
+    def proccess_attachs_acesco(self, id_report, anexos):
+
+        # Procesar y guardar cada archivo de la lista "files"
+        for index, file_base64 in enumerate(anexos):
+
+            isbase64 = True if file_base64.startswith("data:image/") else False
+
+            if not isbase64:
+                self.querys.find_image_and_update_version_two(ReportAttachFilesModel, id_report, file_base64)
+                continue
+                
+            try:
+                # Extraer el formato de la imagen
+                file_extension = self.extract_file_extension(file_base64)
+
+                # Eliminar el prefijo base64 antes de decodificar
+                base64_data = re.sub(r"^data:image/\w+;base64,", "", file_base64)
+
+                # Decodificar la imagen base64
+                file_data = base64.b64decode(base64_data)
+
+                # Open the image with Pillow
+                image = Image.open(io.BytesIO(file_data))
+
+                # Compress the image (resize or adjust quality)
+                compressed_image_io = io.BytesIO()
+                image = image.convert("RGB")  # Ensure the image is in RGB format (no alpha channel)
+                
+                # Save with compression
+                image.save(
+                    compressed_image_io,
+                    format="JPEG",  # Convert to JPEG for better compression
+                    optimize=True,
+                    quality=75  # Adjust the quality (lower = more compression)
+                )
+                compressed_image_io.seek(0)
+                compressed_data = compressed_image_io.read()
+
+            except Exception as e:
+                print(e)
+                raise CustomException(f"Error al decodificar la imagen {index + 1}: {str(e)}")
+
+            # Generar un nombre único para cada archivo
+            file_name = f"{str(uuid.uuid4())}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, file_name)
+
+            # Guardar la imagen decodificada en el servidor
+            try:
+                with open(file_path, "wb") as file:
+                    file.write(compressed_data)
+            except Exception as e:
+                print(e)
+                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
+
+            data_save = {
+                "report_id": id_report,
+                "path": file_path
+            }
+            self.querys.insert_data(ReportAttachFilesModel, data_save)
 
         return True
