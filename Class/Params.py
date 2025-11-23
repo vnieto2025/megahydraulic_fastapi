@@ -3,9 +3,9 @@ from Utils.querys import Querys
 
 class Param:
 
-    def __init__(self):
+    def __init__(self, db):
         self.tools = Tools()
-        self.querys = Querys()
+        self.querys = Querys(db)
 
     def get_type_document(self):
 

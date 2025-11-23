@@ -1,5 +1,5 @@
 
-from Config.db import session
+
 from Utils.tools import Tools, CustomException
 from Models.user_model import UserModel
 from Models.type_document_model import TypeDocumentModel
@@ -22,24 +22,25 @@ from sqlalchemy import func, and_
 
 class Querys:
 
-    def __init__(self):
+    def __init__(self, db):
+        self.db = db
         self.tools = Tools()
 
     # Query for obtain data of user to log
     def get_user(self, document: str):
 
-        query = session.query(
+        query = self.db.query(
             UserModel
         ).filter(
             UserModel.document == document, UserModel.status == 1,
         ).first()
-        session.close()
+
 
         if not query:
             raise CustomException("User not found.")
         
         permission = list()
-        query2 = session.query(
+        query2 = self.db.query(
             ModulesModel.id,
             ModulesModel.name, 
             ModulesModel.description, 
@@ -59,7 +60,7 @@ class Querys:
         ).order_by(
             PermissionModel.module_id.asc()
         ).all()
-        session.close()
+
         if query2:
             for key in query2:
                 permission.append({
@@ -89,12 +90,12 @@ class Querys:
 
         response = list()
                 
-        query = session.query(
+        query = self.db.query(
             TypeDocumentModel
         ).filter(
             TypeDocumentModel.status == 1
         ).all()
-        session.close()
+
         
         if not query:
             raise CustomException("No data to show", 404)
@@ -113,12 +114,12 @@ class Querys:
 
         response = list()
                 
-        query = session.query(
+        query = self.db.query(
             TypeUserModel
         ).filter(
             TypeUserModel.status == 1
         ).all()
-        session.close()
+
         
         if not query:
             raise CustomException("No data to show", 404)
@@ -136,12 +137,12 @@ class Querys:
 
         response = list()
                 
-        query = session.query(
+        query = self.db.query(
             ClientModel
         ).filter(
             ClientModel.status == 1
         ).all()
-        session.close()
+
         
         if not query:
             raise CustomException("No data to show", 404)
@@ -159,12 +160,12 @@ class Querys:
 
         response = list()
                 
-        query = session.query(
+        query = self.db.query(
             TypeServiceModel
         ).filter(
             TypeServiceModel.status == 1
         ).all()
-        session.close()
+
         
         if not query:
             raise CustomException("No data to show", 404)
@@ -182,14 +183,14 @@ class Querys:
 
         response = list()
                 
-        query = session.query(
+        query = self.db.query(
             TypeEquipmentModel
         ).filter(
             TypeEquipmentModel.status == 1
         ).order_by(
             TypeEquipmentModel.order.asc()
         ).all()
-        session.close()
+
         
         if not query:
             raise CustomException("No data to show", 404)
@@ -207,8 +208,8 @@ class Querys:
 
         response = list()
                 
-        with session:
-            query = session.query(
+        with self.db:
+            query = self.db.query(
                 TaskListModel.id, TaskListModel.name
             ).join(
                 TaskListEquipmentModel, 
@@ -241,8 +242,8 @@ class Querys:
 
         response = list()
                 
-        with session:
-            query = session.query(
+        with self.db:
+            query = self.db.query(
                 ClientLinesModel.id, ClientLinesModel.name
             ).join(
                 ClientModel, 
@@ -270,8 +271,8 @@ class Querys:
 
         response = list()
                 
-        with session:
-            query = session.query(
+        with self.db:
+            query = self.db.query(
                 ClientUserModel.id, ClientUserModel.full_name
             ).join(
                 ClientModel, 
@@ -297,12 +298,12 @@ class Querys:
     # Function to verify if exists a field of any list of params
     def check_param_exists(self, model: any, param_to_find: int, field: str):
 
-        query = session.query(
+        query = self.db.query(
             model
         ).filter(
             model.id == param_to_find, model.status == 1
         ).first()
-        session.close()
+
 
         msg = f"Field {field} doesn't exists."
         if not query:
@@ -315,22 +316,21 @@ class Querys:
 
         try:
             report = ReportModel(data)
-            session.add(report)
-            session.commit()
+            self.db.add(report)
+            self.db.commit()
             report_id = report.id
             return report_id
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
     
     # Query for types maintenances.
     def insert_report_details(self, data: dict):
         try:
             details = ReportDetailsModel(data)
-            session.add(details)
-            session.commit()
-            session.close()
+            self.db.add(details)
+            self.db.commit()
+    
         except Exception as ex:
             raise CustomException(str(ex))
         
@@ -341,21 +341,20 @@ class Querys:
 
         try:
             model_data = model(data)
-            session.add(model_data)
-            session.commit()
+            self.db.add(model_data)
+            self.db.commit()
             model_id = model_data.id
             return model_id
         except Exception as ex:
             print(str(ex))
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # switching rows in 0 status.
     def deactive_data(self, model: any, report_id: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 model
             ).filter(
                 model.report_id == report_id, model.status == 1
@@ -366,12 +365,11 @@ class Querys:
 
             for key in query:
                 key.status = 0
-                session.commit()
+                self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -382,7 +380,7 @@ class Querys:
 
             response = dict()
                     
-            query = session.query(
+            query = self.db.query(
                 ReportModel.id, 
                 ReportModel.activity_date,
                 ReportModel.client_id,
@@ -450,7 +448,7 @@ class Querys:
                 files = list()
                 tasks = list()
 
-                query2 = session.query(
+                query2 = self.db.query(
                     ReportTypeServiceModel.report_id,
                     TypeServiceModel.id,
                     TypeServiceModel.name
@@ -474,7 +472,7 @@ class Querys:
 
                 response.update({"type_service": type_service})
 
-                query3 = session.query(
+                query3 = self.db.query(
                     ReportFilesModel.id, ReportFilesModel.path,
                     ReportFilesModel.description
                 ).filter(
@@ -492,7 +490,7 @@ class Querys:
 
                 response.update({"files": files})
 
-                query4 = session.query(
+                query4 = self.db.query(
                     ReportModel.id,
                     ReportDetailsModel.task_id,
                     TaskListModel.name,
@@ -526,8 +524,7 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
         return response
 
@@ -536,7 +533,7 @@ class Querys:
         
         try:
             response = list()
-            query = session.query(
+            query = self.db.query(
                 ReportModel.id, 
                 ReportModel.activity_date,
                 ClientModel.name.label('client_name'),
@@ -601,15 +598,14 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query for find images and update the description.
     def find_image_and_update(self, report_id, img):
         
         print(f"img: {img}")
         try:
-            query = session.query(
+            query = self.db.query(
                 ReportFilesModel
             ).filter(
                 ReportFilesModel.report_id == report_id,
@@ -619,12 +615,11 @@ class Querys:
             if query:
                 query.description = img["description"]
                 query.status = 1
-                session.commit()
+                self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -632,7 +627,7 @@ class Querys:
     def edit_report(self, data):
         
         try:
-            query = session.query(
+            query = self.db.query(
                 ReportModel
             ).filter(
                 ReportModel.id == data["report_id"],
@@ -652,12 +647,11 @@ class Querys:
                 query.equipment_name = data["equipment_name"]
                 query.service_description = data["service_description"]
                 query.information = data["information"]
-                session.commit()
+                self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -666,12 +660,12 @@ class Querys:
 
         result = dict()
         try:
-            query = session.query(
+            query = self.db.query(
                 UserModel
             ).filter(
                 UserModel.id == user_id, UserModel.status == 1,
             ).first()
-            session.close()
+    
 
             if query:
                 result = {
@@ -689,14 +683,13 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query for update user
     def update_user(self, data: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 UserModel
             ).filter(
                 UserModel.id == data["user_id"],
@@ -715,25 +708,24 @@ class Querys:
                 if photo:
                     query.photo = photo
                     
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return photo
 
     # Query for search if document exists.
     def check_document_exists(self, document):
 
-        query = session.query(
+        query = self.db.query(
             UserModel
         ).filter(
             UserModel.document == document,
             UserModel.status == 1
         ).first()
-        session.close()
+
 
         msg = "Usuario ya se encuentra en la base de datos."
         if query:
@@ -746,7 +738,7 @@ class Querys:
         
         try:
             response = list()
-            query = session.query(
+            query = self.db.query(
                 UserModel.id,
                 UserModel.document,
                 UserModel.first_name,
@@ -790,14 +782,13 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query fot change status of the user
     def change_status(self, data: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 UserModel
             ).filter(
                 UserModel.id == data["user_id"]
@@ -806,12 +797,11 @@ class Querys:
             if query:
                 query.status = data["status"]
                      
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -819,7 +809,7 @@ class Querys:
     def update_type_user(self, data: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 UserModel
             ).filter(
                 UserModel.id == data["user_id"],
@@ -828,12 +818,11 @@ class Querys:
             if query:
                 query.user_type_id = data["user_type_id"]
                      
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -841,7 +830,7 @@ class Querys:
     def change_password(self, user_id: int, new_passwd: str):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 UserModel
             ).filter(
                 UserModel.id == user_id,
@@ -851,12 +840,11 @@ class Querys:
             if query:
                 query.password = new_passwd
                      
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -865,7 +853,7 @@ class Querys:
         
         try:
             response = list()
-            query = session.query(
+            query = self.db.query(
                 ClientModel.id,
                 ClientModel.name,
                 ClientModel.status,
@@ -892,24 +880,22 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query for update data client
     def update_client(self, client_id: int, data_update: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 ClientModel
             ).filter_by(
                 id = client_id
             ).update(data_update)                     
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -920,17 +906,17 @@ class Querys:
             response = dict()
             lines = list()
             persons = list()
-            query = session.query(
+            query = self.db.query(
                 ClientModel.id,
                 ClientModel.name
             ).filter(
                 ClientModel.id == client_id, ClientModel.status == 1
             ).first()
-            session.commit()
+            self.db.commit()
 
             if query:
 
-                query2 = session.query(
+                query2 = self.db.query(
                     ClientLinesModel.id,
                     ClientLinesModel.name
                 ).filter(
@@ -945,7 +931,7 @@ class Querys:
                             "name": key.name,
                         })
 
-                query3 = session.query(
+                query3 = self.db.query(
                     ClientUserModel.id,
                     ClientUserModel.full_name,
                 ).filter(
@@ -970,8 +956,7 @@ class Querys:
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return response
 
@@ -979,17 +964,16 @@ class Querys:
     def update_lines_or_person(self, model: any, client_id: int, param_id: int, data_update: dict):
 
         try:
-            query = session.query(
+            query = self.db.query(
                 model
             ).filter_by(
                 id = param_id, client_id = client_id
             ).update(data_update)                     
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -997,17 +981,16 @@ class Querys:
     def change_status_report(self, report_id: int):
 
         try:
-            session.query(
+            self.db.query(
                 ReportModel
             ).filter_by(
                 id = report_id
             ).update({"status": 0})                     
-            session.commit()
+            self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True
 
@@ -1018,7 +1001,7 @@ class Querys:
 
             response = dict()
                     
-            query = session.query(
+            query = self.db.query(
                 ReportModel.id, 
                 ReportModel.activity_date,
                 ReportModel.client_id,
@@ -1066,7 +1049,7 @@ class Querys:
                 files = list()
                 anexos = list()
 
-                query3 = session.query(
+                query3 = self.db.query(
                     ReportFilesModel.id, ReportFilesModel.path,
                 ).filter(
                     ReportFilesModel.report_id == report_id,
@@ -1082,7 +1065,7 @@ class Querys:
 
                 response.update({"files": files})
 
-                query4 = session.query(
+                query4 = self.db.query(
                     ReportAttachFilesModel.id, ReportAttachFilesModel.path,
                 ).filter(
                     ReportAttachFilesModel.report_id == report_id,
@@ -1099,8 +1082,7 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
         return response
 
@@ -1109,7 +1091,7 @@ class Querys:
         
         try:
             response = list()
-            query = session.query(
+            query = self.db.query(
                 ReportModel.id, 
                 ReportModel.activity_date,
                 ClientModel.name.label('client_name'),
@@ -1168,14 +1150,13 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query for update the information of report
     def edit_report_acesco(self, data):
         
         try:
-            query = session.query(
+            query = self.db.query(
                 ReportModel
             ).filter(
                 ReportModel.id == data["report_id"],
@@ -1199,20 +1180,19 @@ class Querys:
                 query.recommendations = data["recommendations"]
                 query.tech_1 = data["tech_1"]
                 query.tech_2 = data["tech_2"]
-                session.commit()
+                self.db.commit()
 
             return True
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
 
     # Query for find images and update them.
     def find_image_and_update_version_two(self, model: any, report_id, img):
         
         try:
-            query = session.query(
+            query = self.db.query(
                 model
             ).filter(
                 model.report_id == report_id,
@@ -1221,11 +1201,10 @@ class Querys:
 
             if query:
                 query.status = 1
-                session.commit()
+                self.db.commit()
                 
         except Exception as ex:
             raise CustomException(str(ex))
-        finally:
-            session.close()
+
         
         return True

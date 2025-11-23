@@ -16,9 +16,9 @@ PASSWD = "mega1234"
 
 class User:
 
-    def __init__(self):
+    def __init__(self, db):
         self.tools = Tools()
-        self.querys = Querys()
+        self.querys = Querys(db)
 
     # Function for log to the app
     def login(self, data):

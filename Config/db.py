@@ -1,10 +1,8 @@
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import NullPool
 import os
 from dotenv import load_dotenv
-
 
 BASE = declarative_base() 
 load_dotenv()
@@ -25,9 +23,13 @@ connect_url = sqlalchemy.engine.url.URL(
     query=dict(charset="utf8mb4")
 )
 
-engine = sqlalchemy.create_engine(connect_url, poolclass=NullPool)
+engine = sqlalchemy.create_engine(connect_url)
 
-session_maker = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-session = session_maker()
-        
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

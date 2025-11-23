@@ -6,9 +6,9 @@ from Models.client_user_model import ClientUserModel
 
 class Client:
 
-    def __init__(self):
+    def __init__(self, db):
         self.tools = Tools()
-        self.querys = Querys()
+        self.querys = Querys(db)
 
     # Function for create an user
     def create_client(self, data):

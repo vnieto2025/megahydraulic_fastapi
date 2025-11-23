@@ -11,8 +11,6 @@ from urllib.parse import urlparse
 from fastapi.responses import StreamingResponse
 
 tool = Tools()
-querys = Querys()
-
 
 def http_decorator(func):
     @wraps(func)
@@ -108,7 +106,10 @@ def http_decorator(func):
                         "response": str(contenido),
                         "ip": request.client.host,
                     }
-                    querys.insert_data(LogsModel, data_log)
+                    db = kwargs.get("db")
+                    if db:
+                        querys = Querys(db)
+                        querys.insert_data(LogsModel, data_log)
  
             return resultado
     return decorador

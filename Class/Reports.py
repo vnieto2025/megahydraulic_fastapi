@@ -28,9 +28,9 @@ UPLOAD_FOLDER = "Uploads/"
 
 class Report:
 
-    def __init__(self):
+    def __init__(self, db):
         self.tools = Tools()
-        self.querys = Querys()
+        self.querys = Querys(db)
         self.filter_class = Filters()
 
     # Funcion for create a report
