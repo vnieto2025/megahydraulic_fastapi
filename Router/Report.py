@@ -72,3 +72,17 @@ def edit_report_acesco(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = Report(db).edit_report_acesco(data)
     return response
+
+@report_router.post('/reports/generate_multiple_reports', tags=["Reports"], dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def generate_multiple_reports(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = Report(db).generate_multiple_reports(data)
+    return response
+
+@report_router.post('/reports/generate_multiple_reports_acesco', tags=["Reports"], dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def generate_multiple_reports_acesco(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = Report(db).generate_multiple_reports_acesco(data)
+    return response

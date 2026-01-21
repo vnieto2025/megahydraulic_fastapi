@@ -89,9 +89,13 @@ def http_decorator(func):
                         resultado = tool.output(codigo, message, data)
 
                     if isinstance(resultado, StreamingResponse):
-                        if request.url.path == "/reports/generate_report" or request.url.path == "/reports/generate_report_acesco":
+                        if request.url.path in ["/reports/generate_report", "/reports/generate_report_acesco"]:
                             if "flag" in body and body["flag"]:
                                 contenido = "IMPRIMIENDO PDF"
+                            else:
+                                contenido = "DESCARGANDO PDF"
+                        elif request.url.path in ["/reports/generate_multiple_reports", "/reports/generate_multiple_reports_acesco"]:
+                            contenido = "DESCARGANDO ZIP CON MÚLTIPLES PDFS"
                     else:
                         if request.url.path == "/reports/create_report" or request.url.path == "/reports/edit_report" or request.url.path == "/reports/create_report_acesco" or request.url.path == "/reports/edit_report_acesco":
                             body.pop("files")

@@ -23,6 +23,7 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 from PIL import Image
 import traceback
+import zipfile
 
 UPLOAD_FOLDER = "Uploads/"
 
@@ -821,3 +822,101 @@ class Report:
             self.querys.insert_data(ReportAttachFilesModel, data_save)
 
         return True
+
+    # Function for generate multiple reports PDFs
+    def generate_multiple_reports(self, data: dict):
+        try:
+            report_ids = data.get("report_ids", [])
+            
+            if not report_ids:
+                raise CustomException("No se proporcionaron IDs de reportes")
+            
+            if len(report_ids) > 50:
+                raise CustomException("No se pueden generar más de 50 reportes a la vez")
+            
+            # Crear un archivo ZIP en memoria
+            zip_buffer = BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for report_id in report_ids:
+                    try:
+                        data_report = self.querys.get_data_report(report_id)
+                        pdf_bytes = self.tools.gen_pdf(data_report)
+                        
+                        # Agregar el PDF al ZIP con un nombre único
+                        pdf_filename = f"reporte_{report_id}.pdf"
+                        zip_file.writestr(pdf_filename, pdf_bytes)
+                        
+                    except Exception as e:
+                        print(f"Error generando reporte {report_id}: {str(e)}")
+                        # Continuar con los demás reportes
+                        continue
+            
+            # Preparar el buffer para la descarga
+            zip_buffer.seek(0)
+            
+            # Nombre del archivo ZIP
+            file_name = f"reportes_multiples_{str(datetime.now().strftime('%Y%m%d_%H%M%S'))}.zip"
+            
+            return StreamingResponse(
+                zip_buffer,
+                headers={
+                    "Content-Disposition": f"attachment; filename={file_name}",
+                    "Content-Type": "application/zip",
+                },
+            )
+            
+        except CustomException as e:
+            raise e
+        except Exception as e:
+            print(traceback.format_exc())
+            raise CustomException(f"Error al generar reportes múltiples: {str(e)}")
+
+    # Function for generate multiple reports PDFs (Acesco)
+    def generate_multiple_reports_acesco(self, data: dict):
+        try:
+            report_ids = data.get("report_ids", [])
+            
+            if not report_ids:
+                raise CustomException("No se proporcionaron IDs de reportes")
+            
+            if len(report_ids) > 50:
+                raise CustomException("No se pueden generar más de 50 reportes a la vez")
+            
+            # Crear un archivo ZIP en memoria
+            zip_buffer = BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for report_id in report_ids:
+                    try:
+                        data_report = self.querys.get_data_report_acesco(report_id)
+                        pdf_bytes = self.tools.gen_pdf_acesco(data_report)
+                        
+                        # Agregar el PDF al ZIP con un nombre único
+                        pdf_filename = f"reporte_acesco_{report_id}.pdf"
+                        zip_file.writestr(pdf_filename, pdf_bytes)
+                        
+                    except Exception as e:
+                        print(f"Error generando reporte Acesco {report_id}: {str(e)}")
+                        # Continuar con los demás reportes
+                        continue
+            
+            # Preparar el buffer para la descarga
+            zip_buffer.seek(0)
+            
+            # Nombre del archivo ZIP
+            file_name = f"reportes_acesco_multiples_{str(datetime.now().strftime('%Y%m%d_%H%M%S'))}.zip"
+            
+            return StreamingResponse(
+                zip_buffer,
+                headers={
+                    "Content-Disposition": f"attachment; filename={file_name}",
+                    "Content-Type": "application/zip",
+                },
+            )
+            
+        except CustomException as e:
+            raise e
+        except Exception as e:
+            print(traceback.format_exc())
+            raise CustomException(f"Error al generar reportes Acesco múltiples: {str(e)}")
