@@ -65,3 +65,21 @@ def change_password(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = User(db).change_password(data)
     return response
+
+@user_router.post('/user/check_token', tags=["Auth"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def check_token(request: Request, db: Session = Depends(get_db)):
+    """
+    Endpoint para verificar el tiempo restante del token.
+    Retorna los minutos restantes antes de que expire.
+    """
+    # Obtener el token del header Authorization
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return tools.output(401, "Token no proporcionado", {})
+    
+    token = auth_header.split(" ")[1]
+    
+    # Llamar al método de la clase User
+    response = User(db).check_token(token)
+    return response

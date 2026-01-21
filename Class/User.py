@@ -1,6 +1,6 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 from Utils.tools import Tools, CustomException
-from Utils.jwt_manager import create_token
+from Utils.jwt_manager import create_token, validate_token
 from Utils.querys import Querys
 from Models.user_model import UserModel
 from Models.type_document_model import TypeDocumentModel
@@ -10,6 +10,7 @@ import base64
 import uuid
 import os
 import hashlib
+from datetime import datetime, timezone
 
 ASSETS_FOLDER = "assets/img/"
 PASSWD = "mega1234"
@@ -255,3 +256,35 @@ class User:
         self.querys.change_password(user_id, new_passwd)
 
         return self.tools.output(200, "Contraseña actualizada.")
+
+    # Function for check token expiration time
+    def check_token(self, token: str):
+        """
+        Verifica el tiempo restante del token JWT.
+        Retorna los minutos restantes antes de que expire.
+        """
+        try:
+            # Validar y decodificar el token
+            payload = validate_token(token)
+            
+            # Obtener el tiempo de expiración del token
+            exp_timestamp = payload.get("exp")
+            if not exp_timestamp:
+                raise CustomException("Token inválido")
+            
+            # Calcular el tiempo restante en minutos
+            now = datetime.now(timezone.utc)
+            expiration_time = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
+            time_remaining = expiration_time - now
+            minutes_remaining = int(time_remaining.total_seconds() / 60)
+            
+            return self.tools.output(200, "Token verificado", {
+                "minutes_remaining": minutes_remaining,
+                "expiration_time": expiration_time.isoformat(),
+                "is_about_to_expire": minutes_remaining <= 5
+            })
+            
+        except CustomException as ce:
+            raise ce
+        except Exception as e:
+            raise CustomException(f"Error al verificar token: {str(e)}")
