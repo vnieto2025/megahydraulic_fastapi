@@ -9,6 +9,7 @@ import traceback
 import json
 from urllib.parse import urlparse
 from fastapi.responses import StreamingResponse
+from datetime import datetime
 
 tool = Tools()
 
@@ -109,6 +110,7 @@ def http_decorator(func):
                         "request": str(body),
                         "response": str(contenido),
                         "ip": request.client.host,
+                        "created_at": datetime.now()
                     }
                     db = kwargs.get("db")
                     if db:

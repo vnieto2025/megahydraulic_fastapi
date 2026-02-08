@@ -323,7 +323,6 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-    
     # Query for types maintenances.
     def insert_report_details(self, data: dict):
         try:
@@ -348,7 +347,6 @@ class Querys:
         except Exception as ex:
             print(str(ex))
             raise CustomException(str(ex))
-
 
     # switching rows in 0 status.
     def deactive_data(self, model: any, report_id: dict):
@@ -599,7 +597,6 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-
     # Query for find images and update the description.
     def find_image_and_update(self, report_id, img):
         
@@ -683,7 +680,6 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-
 
     # Query for update user
     def update_user(self, data: dict):
@@ -783,7 +779,6 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-
     # Query fot change status of the user
     def change_status(self, data: dict):
 
@@ -880,7 +875,6 @@ class Querys:
 
         except Exception as ex:
             raise CustomException(str(ex))
-
 
     # Query for update data client
     def update_client(self, client_id: int, data_update: dict):
@@ -1151,7 +1145,6 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-
     # Query for update the information of report
     def edit_report_acesco(self, data):
         
@@ -1187,7 +1180,6 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-
     # Query for find images and update them.
     def find_image_and_update_version_two(self, model: any, report_id, img):
         
@@ -1205,6 +1197,5 @@ class Querys:
                 
         except Exception as ex:
             raise CustomException(str(ex))
-
         
         return True

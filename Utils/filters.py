@@ -1,6 +1,7 @@
 from Models.report_model import ReportModel
 from Utils.tools import CustomException
 from datetime import datetime, timedelta
+from sqlalchemy import or_
 
 class Filters:
     
@@ -33,9 +34,26 @@ class Filters:
     def solped_filter(self, data: dict):
 
         filter = []
-        solped = data.get("solped") != None and data.get("solped") != ""
+        solped = data.get("solped")
+        
         if solped:
-            filter.append(ReportModel.solped.like(f'%{data["solped"]}%'))
+            if isinstance(solped, list):
+                conditions = []
+                for s in solped:
+                    if s:
+                        conditions.append(ReportModel.solped.like(f'%{s}%'))
+                if conditions:
+                    filter.append(or_(*conditions))
+            elif isinstance(solped, str) and solped != "":
+                if ';' in solped:
+                    conditions = []
+                    for s in solped.split(';'):
+                        if s.strip():
+                            conditions.append(ReportModel.solped.like(f'%{s.strip()}%'))
+                    if conditions:
+                        filter.append(or_(*conditions))
+                else:
+                    filter.append(ReportModel.solped.like(f'%{solped}%'))
 
         return filter
 

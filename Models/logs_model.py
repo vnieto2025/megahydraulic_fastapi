@@ -12,7 +12,7 @@ class LogsModel(BASE):
     request = Column(Text)
     response = Column(Text)
     ip = Column(String, nullable=True)
-    created_at = Column(DateTime(), default=datetime.now(), nullable=False)
+    created_at = Column(DateTime(), default=datetime.now, nullable=False)
 
     def __init__(self, data: dict):
         self.service = data['service']
@@ -20,3 +20,5 @@ class LogsModel(BASE):
         self.request = data['request']
         self.response = data['response']
         self.ip = data['ip']
+        if 'created_at' in data:
+            self.created_at = data['created_at']
