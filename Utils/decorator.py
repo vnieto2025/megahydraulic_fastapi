@@ -98,8 +98,31 @@ def http_decorator(func):
                         elif request.url.path in ["/reports/generate_multiple_reports", "/reports/generate_multiple_reports_acesco"]:
                             contenido = "DESCARGANDO ZIP CON MÚLTIPLES PDFS"
                     else:
-                        if request.url.path == "/reports/create_report" or request.url.path == "/reports/edit_report" or request.url.path == "/reports/create_report_acesco" or request.url.path == "/reports/edit_report_acesco":
-                            body.pop("files")
+                        # Función para limpiar datos base64 de imágenes antes de guardar en logs
+                        def clean_base64_data(obj, max_length=500):
+                            """Elimina o trunca datos base64 de imágenes en el objeto"""
+                            if isinstance(obj, dict):
+                                cleaned = {}
+                                for key, value in obj.items():
+                                    # Eliminar campos conocidos de archivos
+                                    if key in ["files", "file", "images", "image", "photos", "photo", "attachments"]:
+                                        cleaned[key] = "[ARCHIVOS REMOVIDOS]"
+                                    # Si es un string muy largo que parece base64, truncarlo
+                                    elif isinstance(value, str) and len(value) > max_length and any(indicator in value for indicator in ["data:image", "/9j/", "iVBORw0KGgo"]):
+                                        cleaned[key] = f"[BASE64_IMAGE_TRUNCATED - {len(value)} chars]"
+                                    else:
+                                        cleaned[key] = clean_base64_data(value, max_length)
+                                return cleaned
+                            elif isinstance(obj, list):
+                                return [clean_base64_data(item, max_length) for item in obj]
+                            elif isinstance(obj, str) and len(obj) > max_length and any(indicator in obj for indicator in ["data:image", "/9j/", "iVBORw0KGgo"]):
+                                return f"[BASE64_IMAGE_TRUNCATED - {len(obj)} chars]"
+                            else:
+                                return obj
+                        
+                        if request.url.path in ["/reports/create_report", "/reports/edit_report", "/reports/create_report_acesco", "/reports/edit_report_acesco"]:
+                            body = clean_base64_data(body)
+                        
                         # Acceder al contenido del JSONResponse
                         contenido_serializado = resultado.body  # Esto está en formato bytes
                         contenido = json.loads(contenido_serializado.decode("utf-8"))  # Convertirlo a dict
