@@ -55,3 +55,18 @@ class Param:
 
         clients = self.querys.get_clients()
         return self.tools.output(200, "Ok.", clients)
+
+    def get_service_statuses(self):
+
+        service_statuses = self.querys.get_service_statuses()
+        return self.tools.output(200, "Ok.", service_statuses)
+
+    def get_report_statuses(self):
+
+        report_statuses = self.querys.get_report_statuses()
+        return self.tools.output(200, "Ok.", report_statuses)
+
+    def get_components(self):
+
+        components = self.querys.get_components()
+        return self.tools.output(200, "Ok.", components)

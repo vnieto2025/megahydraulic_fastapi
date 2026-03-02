@@ -421,29 +421,32 @@ class Tools:
 
         y_position = 596
         # Ajustamos informatión dinamicamente
-        self.ajust_long_text_acesco(
-            pdf,
-            data['information'], 
-            52, 
-            y_position, 
-            390
-        )
+        if data['information']:
+            self.ajust_long_text_acesco(
+                pdf,
+                data['information'], 
+                52, 
+                y_position, 
+                390
+            )
 
-        self.ajust_long_text_acesco(
-            pdf,
-            data['conclutions'], 
-            52, 
-            90, 
-            390
-        )
+        if data["conclutions"]:
+            self.ajust_long_text_acesco(
+                pdf,
+                data['conclutions'], 
+                52, 
+                90, 
+                390
+            )
 
-        self.ajust_long_text_acesco(
-            pdf,
-            data['recommendations'], 
-            52, 
-            50, 
-            390
-        )
+        if data["recommendations"]:
+            self.ajust_long_text_acesco(
+                pdf,
+                data['recommendations'], 
+                52, 
+                50, 
+                390
+            )
 
         image_paths = data["files"]
         if image_paths:

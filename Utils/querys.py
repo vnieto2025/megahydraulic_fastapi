@@ -18,6 +18,11 @@ from Models.report_files_model import ReportFilesModel
 from Models.report_attach_files_model import ReportAttachFilesModel
 from Models.module_model import ModulesModel
 from Models.permission_model import PermissionModel
+from Models.service_status_model import ServiceStatusModel
+from Models.report_status_model import ReportStatusModel
+from Models.components_model import ComponentsModel
+from Models.service_control_model import ServiceControlModel
+from Models.components_model import ComponentsModel
 from sqlalchemy import func, and_
 
 class Querys:
@@ -201,6 +206,72 @@ class Querys:
                 "name": key.name
             })
         
+        return response
+
+    # Query for have all service statuses
+    def get_service_statuses(self):
+
+        response = list()
+
+        query = self.db.query(
+            ServiceStatusModel
+        ).filter(
+            ServiceStatusModel.status == 1
+        ).all()
+
+        if not query:
+            raise CustomException("No data to show", 404)
+
+        for key in query:
+            response.append({
+                "id": key.id,
+                "name": key.name
+            })
+
+        return response
+
+    # Query for have all report statuses
+    def get_report_statuses(self):
+
+        response = list()
+
+        query = self.db.query(
+            ReportStatusModel
+        ).filter(
+            ReportStatusModel.status == 1
+        ).all()
+
+        if not query:
+            raise CustomException("No data to show", 404)
+
+        for key in query:
+            response.append({
+                "id": key.id,
+                "name": key.name
+            })
+
+        return response
+
+    # Query for have all components
+    def get_components(self):
+
+        response = list()
+
+        query = self.db.query(
+            ComponentsModel
+        ).filter(
+            ComponentsModel.status == 1
+        ).all()
+
+        if not query:
+            raise CustomException("No data to show", 404)
+
+        for key in query:
+            response.append({
+                "id": key.id,
+                "name": key.name
+            })
+
         return response
 
     # Query for have all task by equipment
@@ -409,17 +480,18 @@ class Querys:
                 ClientUserModel.id == ReportModel.person_receives,
                 isouter=True
             ).join(
-                TypeEquipmentModel, 
-                TypeEquipmentModel.id == ReportModel.equipment_type_id,
+                TypeEquipmentModel,
+                and_(TypeEquipmentModel.id == ReportModel.equipment_type_id, TypeEquipmentModel.status == 1),
                 isouter=True
             ).filter(
                 ClientModel.status == 1,
                 ClientLinesModel.status == 1,
                 ClientUserModel.status == 1,
-                TypeEquipmentModel.status == 1,
                 ReportModel.id == report_id,
                 ReportModel.status == 1
             ).first()
+
+            print("Query principal:", query)  # Debug: Verificar la consulta principal
             
             if query:
                 response = {
@@ -438,7 +510,7 @@ class Querys:
                     "information": query.information,
                     "equipment_type_id": query.equipment_type_id,
                     "equipment_type_name": query.equipment_type_name,
-                    "equipment_name": str(query.equipment_name).upper(),
+                    "equipment_name": str(query.equipment_name).upper() if query.equipment_name else '',
                     "service_description": str(query.service_description).capitalize(),
                 }
 
@@ -527,8 +599,146 @@ class Querys:
         return response
 
     # Query for get the reports according to case
+    def get_service_control(self, record_id: int):
+
+        try:
+            query = self.db.query(
+                ServiceControlModel.id,
+                ServiceControlModel.activity_date,
+                ServiceControlModel.client_id,
+                ServiceControlModel.client_line_id,
+                ServiceControlModel.responsible_id,
+                ServiceControlModel.description,
+                ServiceControlModel.information,
+                ServiceControlModel.service_order,
+                ServiceControlModel.quotation,
+                ServiceControlModel.component,
+                ServiceControlModel.component_quantity,
+                ServiceControlModel.value,
+                ServiceControlModel.solped,
+                ServiceControlModel.oc,
+                ServiceControlModel.position,
+                ServiceControlModel.service_status,
+                ServiceControlModel.report_status,
+                ServiceControlModel.consecutive,
+                ServiceControlModel.invoice,
+                ServiceControlModel.invoice_date,
+                ServiceControlModel.note,
+                ServiceControlModel.report_id,
+                ServiceControlModel.user_id,
+                ClientModel.name.label('client_name'),
+                ClientLinesModel.name.label('client_line'),
+                ServiceStatusModel.name.label('service_status_name'),
+                ReportStatusModel.name.label('report_status_name'),
+            ).join(
+                ClientModel, ClientModel.id == ServiceControlModel.client_id, isouter=True
+            ).join(
+                ClientLinesModel, ClientLinesModel.id == ServiceControlModel.client_line_id, isouter=True
+            ).join(
+                ServiceStatusModel, ServiceStatusModel.id == ServiceControlModel.service_status, isouter=True
+            ).join(
+                ReportStatusModel, ReportStatusModel.id == ServiceControlModel.report_status, isouter=True
+            ).filter(
+                ServiceControlModel.id == record_id,
+                ServiceControlModel.status == 1
+            ).first()
+
+            if not query:
+                raise CustomException("Registro no encontrado.", 404)
+
+            return query
+
+        except CustomException:
+            raise
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def update_service_control(self, record_id: int, data_update: dict):
+        try:
+            self.db.query(ServiceControlModel).filter_by(id=record_id).update(data_update)
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def list_service_controls(self, data, data_filter: list = []):
+        try:
+            query = self.db.query(
+                ServiceControlModel.id,
+                ServiceControlModel.activity_date,
+                ClientModel.name.label('client_name'),
+                ClientLinesModel.name.label('client_line'),
+                ClientUserModel.full_name.label('responsible_name'),
+                ServiceControlModel.responsible_id,
+                ServiceControlModel.service_order,
+                ServiceControlModel.quotation,
+                ServiceControlModel.component,
+                ComponentsModel.name.label('component_name'),
+                ServiceControlModel.component_quantity,
+                ServiceControlModel.value,
+                ServiceControlModel.solped,
+                ServiceControlModel.oc,
+                ServiceControlModel.position,
+                ServiceControlModel.service_status,
+                ServiceStatusModel.name.label('service_status_name'),
+                ReportStatusModel.name.label('report_status_name'),
+                ServiceControlModel.consecutive,
+                ServiceControlModel.invoice,
+                ServiceControlModel.invoice_date,
+                ServiceControlModel.report_id,
+            ).join(
+                ClientModel,
+                ClientModel.id == ServiceControlModel.client_id,
+                isouter=True
+            ).join(
+                ClientLinesModel,
+                ClientLinesModel.id == ServiceControlModel.client_line_id,
+                isouter=True
+            ).join(
+                UserModel,
+                UserModel.id == ServiceControlModel.responsible_id,
+                isouter=True
+            ).join(
+                ServiceStatusModel,
+                ServiceStatusModel.id == ServiceControlModel.service_status,
+                isouter=True
+            ).join(
+                ReportStatusModel,
+                ReportStatusModel.id == ServiceControlModel.report_status,
+                isouter=True
+            ).join(
+                ClientUserModel,
+                ClientUserModel.id == ServiceControlModel.responsible_id,
+                isouter=True
+            ).join(
+                ComponentsModel,
+                ComponentsModel.id == ServiceControlModel.component,
+                isouter=True
+            ).filter(
+                ServiceControlModel.status == 1
+            )
+
+            if data_filter:
+                query = query.filter(and_(*data_filter))
+
+            query = query.order_by(ServiceControlModel.id.desc())
+
+            reg_cont = query.count()
+
+            total_valor_query = self.db.query(
+                func.sum(ServiceControlModel.value)
+            ).filter(ServiceControlModel.status == 1)
+            if data_filter:
+                total_valor_query = total_valor_query.filter(and_(*data_filter))
+            total_valor = total_valor_query.scalar() or 0
+
+            records = query.limit(data["limit"]).offset(data["limit"] * (int(data["position"]) - 1))
+
+            return {"records": records, "reg_cont": reg_cont, "total_valor": total_valor}
+
+        except Exception as ex:
+            raise CustomException(str(ex))
+
     def list_reports(self, data, user_id = None, state: bool = True, data_filter: list = []):
-        
         try:
             response = list()
             query = self.db.query(
@@ -541,7 +751,7 @@ class Querys:
                 ReportModel.solped,
                 ReportModel.buy_order,
                 ReportModel.position,
-                TypeEquipmentModel.name.label('type_equipment_name'),
+                # TypeEquipmentModel.name.label('type_equipment_name'),
                 ReportModel.equipment_name,
                 UserModel.first_name,
                 UserModel.last_name
@@ -558,10 +768,6 @@ class Querys:
                 ClientUserModel.id == ReportModel.person_receives,
                 isouter=True
             ).join(
-                TypeEquipmentModel, 
-                TypeEquipmentModel.id == ReportModel.equipment_type_id,
-                isouter=True
-            ).join(
                 UserModel, 
                 UserModel.id == ReportModel.user_id,
                 isouter=True
@@ -569,7 +775,7 @@ class Querys:
                 ClientModel.status == 1,
                 ClientLinesModel.status == 1,
                 ClientUserModel.status == 1,
-                TypeEquipmentModel.status == 1,
+                # TypeEquipmentModel.status == 1,
                 ReportModel.type_report == 0,
                 UserModel.status == 1,
                 ReportModel.status == 1

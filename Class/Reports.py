@@ -216,15 +216,17 @@ class Report:
 
         data_report = self.querys.get_data_report(report_id)
 
-        pdf = self.tools.gen_pdf(data_report)
-
-        # Nombre del archivo pdf de salida
-        file_name = f"reporte_{data['report_id']}_{str(datetime.now())}.pdf"
+        print("Data report para PDF:", data_report)  # Debug: Verificar los datos obtenidos
 
         # return self.tools.output(200, "Ok", data_report)
         # return self.tools.outputpdf(200, file_name, pdf)
         # Retornar el PDF como respuesta
         if flag:
+            pdf = self.tools.gen_pdf(data_report)
+
+            # Nombre del archivo pdf de salida
+            file_name = f"reporte_{data['report_id']}_{str(datetime.now())}.pdf"
+
             return StreamingResponse(
                 BytesIO(pdf),
                 headers={
@@ -292,8 +294,8 @@ class Report:
                 "solped": key.solped,
                 "buy_order": key.buy_order,
                 "position": key.position,
-                "type_equipment_name": key.type_equipment_name,
-                "equipment_name": str(key.equipment_name).capitalize(),
+                # "type_equipment_name": key.type_equipment_name,
+                "equipment_name": str(key.equipment_name).capitalize() if key.equipment_name else '',
                 "user_name": f"{first_name} {last_name}"
             })
 

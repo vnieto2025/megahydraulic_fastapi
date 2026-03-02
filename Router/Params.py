@@ -65,3 +65,21 @@ def get_users_by_client(request: Request, db: Session = Depends(get_db)):
 def get_clients(request: Request, db: Session = Depends(get_db)):
     response = Param(db).get_clients()
     return response
+
+@param_router.post('/params/get_service_statuses', tags=["Params"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_service_statuses(request: Request, db: Session = Depends(get_db)):
+    response = Param(db).get_service_statuses()
+    return response
+
+@param_router.post('/params/get_report_statuses', tags=["Params"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_report_statuses(request: Request, db: Session = Depends(get_db)):
+    response = Param(db).get_report_statuses()
+    return response
+
+@param_router.post('/params/get_components', tags=["Params"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_components(request: Request, db: Session = Depends(get_db)):
+    response = Param(db).get_components()
+    return response

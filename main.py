@@ -7,6 +7,7 @@ from Router.User import user_router
 from Router.Params import param_router
 from Router.Report import report_router
 from Router.Client import client_router
+from Router.ServiceControl import service_control_router
 from pathlib import Path
 
 
@@ -30,6 +31,7 @@ app.include_router(user_router)
 app.include_router(param_router)
 app.include_router(report_router)
 app.include_router(client_router)
+app.include_router(service_control_router)
 
 BASE.metadata.create_all(bind=engine)
 
