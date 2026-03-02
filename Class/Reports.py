@@ -12,6 +12,7 @@ from Models.task_list_model import TaskListModel
 from Models.report_type_service_model import ReportTypeServiceModel
 from Models.report_files_model import ReportFilesModel
 from Models.report_attach_files_model import ReportAttachFilesModel
+from Models.service_control_model import ServiceControlModel
 from Utils.rules import Rules
 from datetime import datetime
 import os
@@ -133,6 +134,8 @@ class Report:
             if imagenes:
                 self.proccess_images(id_report, imagenes)
 
+            self._sync_service_control(data, id_report, service_value=0)
+
             return self.tools.output(201, "Reporte creado exitosamente.", id_report)
 
         except Exception as ex:
@@ -199,6 +202,38 @@ class Report:
 
         return True
     
+    # Sync report data into service_control table
+    def _sync_service_control(self, data: dict, id_report: int, service_value=0):
+        try:
+            sc_data = {
+                "activity_date": self.tools.format_date(data["activity_date"]),
+                "client_id": data["client_id"],
+                "client_line_id": data["client_line_id"],
+                "responsible_id": data["person_receives"],
+                "description": data.get("service_description"),
+                "information": data.get("information"),
+                "service_order": data.get("om"),
+                "quotation": None,
+                "component": None,
+                "component_quantity": 0,
+                "value": service_value if service_value else 0,
+                "solped": data.get("solped"),
+                "oc": data.get("buy_order"),
+                "position": data.get("position"),
+                "service_status": 0,
+                "report_status": 0,
+                "consecutive": id_report,
+                "invoice": None,
+                "invoice_date": None,
+                "note": None,
+                "report_id": id_report,
+                "user_id": data["user_id"],
+            }
+            self.querys.insert_data(ServiceControlModel, sc_data)
+        except Exception as ex:
+            # No bloqueamos la creación del reporte si falla el sync
+            print(f"[sync_service_control] Error: {str(ex)}")
+
     # Busca el prefijo que indica el tipo de archivo, como data:image/jpeg;base64,
     def extract_file_extension(self, file_base64: str):
         match = re.match(r"data:image/(?P<ext>\w+);base64,", file_base64)
@@ -506,6 +541,8 @@ class Report:
             anexos = data["anexos"]
             if anexos:
                 self.proccess_attachs_acesco(id_report, anexos)
+
+            self._sync_service_control(data, id_report, service_value=data.get("service_value", 0))
 
             return self.tools.output(201, "Reporte creado exitosamente.", id_report)
 
