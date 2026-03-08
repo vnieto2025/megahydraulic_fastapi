@@ -30,6 +30,8 @@ class ServiceControlModel(BASE):
     invoice = Column(Integer, nullable=True)
     invoice_date = Column(Date, nullable=True)
     note = Column(Text, nullable=True)
+    hes = Column(String(100), nullable=True)
+    gestor = Column(String(200), nullable=True)
     report_id = Column(BigInteger, nullable=True)
     user_id = Column(BigInteger, nullable=False)
     status = Column(Integer, nullable=False, default=1)
@@ -56,5 +58,7 @@ class ServiceControlModel(BASE):
         self.invoice = data['invoice']
         self.invoice_date = data['invoice_date']
         self.note = data['note']
+        self.hes = data.get('hes', None)
+        self.gestor = data.get('gestor', None)
         self.report_id = data.get('report_id', None)
         self.user_id = data['user_id']

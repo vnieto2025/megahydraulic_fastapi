@@ -99,6 +99,8 @@ class Querys:
             TypeDocumentModel
         ).filter(
             TypeDocumentModel.status == 1
+        ).order_by(
+            TypeDocumentModel.name.asc()
         ).all()
 
         
@@ -123,6 +125,8 @@ class Querys:
             TypeUserModel
         ).filter(
             TypeUserModel.status == 1
+        ).order_by(
+            TypeUserModel.name.asc()
         ).all()
 
         
@@ -146,18 +150,17 @@ class Querys:
             ClientModel
         ).filter(
             ClientModel.status == 1
+        ).order_by(
+            ClientModel.name.asc()
         ).all()
 
-        
-        if not query:
-            raise CustomException("No data to show", 404)
-        
-        for key in query:
-            response.append({
-                "id": key.id,
-                "name": key.name
-            })
-        
+        if query:
+            for key in query:
+                response.append({
+                    "id": key.id,
+                    "name": key.name
+                })
+
         return response
 
     # Query for have all type services
@@ -169,6 +172,8 @@ class Querys:
             TypeServiceModel
         ).filter(
             TypeServiceModel.status == 1
+        ).order_by(
+            TypeServiceModel.name.asc()
         ).all()
 
         
@@ -217,6 +222,8 @@ class Querys:
             ServiceStatusModel
         ).filter(
             ServiceStatusModel.status == 1
+        ).order_by(
+            ServiceStatusModel.name.asc()
         ).all()
 
         if not query:
@@ -239,6 +246,8 @@ class Querys:
             ReportStatusModel
         ).filter(
             ReportStatusModel.status == 1
+        ).order_by(
+            ReportStatusModel.name.asc()
         ).all()
 
         if not query:
@@ -261,6 +270,8 @@ class Querys:
             ComponentsModel
         ).filter(
             ComponentsModel.status == 1
+        ).order_by(
+            ComponentsModel.name.asc()
         ).all()
 
         if not query:
@@ -274,7 +285,7 @@ class Querys:
 
         return response
 
-    # Query for have all task by equipment
+    # Query for have all tasks by equipment
     def get_tasks_by_equipment(self, equipment: int):
 
         response = list()
@@ -295,6 +306,8 @@ class Querys:
                 TaskListModel.status == 1,
                 TaskListEquipmentModel.status == 1,
                 TaskListEquipmentModel.equipment_id == equipment
+            ).order_by(
+                TaskListModel.name.asc()
             ).all()
         
         if not query:
@@ -324,6 +337,8 @@ class Querys:
                 ClientModel.status == 1,
                 ClientLinesModel.status == 1,
                 ClientLinesModel.client_id == client
+            ).order_by(
+                ClientLinesModel.name.asc()
             ).all()
         
         if not query:
@@ -353,6 +368,8 @@ class Querys:
                 ClientModel.status == 1,
                 ClientUserModel.status == 1,
                 ClientUserModel.client_id == client
+            ).order_by(
+                ClientUserModel.full_name.asc()
             ).all()
         
         if not query:
@@ -624,6 +641,8 @@ class Querys:
                 ServiceControlModel.invoice,
                 ServiceControlModel.invoice_date,
                 ServiceControlModel.note,
+                ServiceControlModel.hes,
+                ServiceControlModel.gestor,
                 ServiceControlModel.report_id,
                 ServiceControlModel.user_id,
                 ClientModel.name.label('client_name'),
@@ -653,6 +672,29 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    # Query for change (deactivate) a service control record
+    def change_status_service_control(self, record_id: int):
+        try:
+            self.db.query(ServiceControlModel).filter_by(id=record_id).update({"status": 0})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Query to check if solped + position combination already exists
+    def check_solped_position_duplicate(self, solped: str, position: str, exclude_id: int = None):
+        try:
+            query = self.db.query(ServiceControlModel).filter(
+                ServiceControlModel.solped == solped,
+                ServiceControlModel.position == position,
+                ServiceControlModel.status == 1
+            )
+            if exclude_id:
+                query = query.filter(ServiceControlModel.id != exclude_id)
+            return query.first()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Query for update the service control
     def update_service_control(self, record_id: int, data_update: dict):
         try:
             self.db.query(ServiceControlModel).filter_by(id=record_id).update(data_update)
@@ -660,6 +702,7 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    # Query for list the service controls according to case
     def list_service_controls(self, data, data_filter: list = []):
         try:
             query = self.db.query(
@@ -669,6 +712,8 @@ class Querys:
                 ClientLinesModel.name.label('client_line'),
                 ClientUserModel.full_name.label('responsible_name'),
                 ServiceControlModel.responsible_id,
+                ServiceControlModel.description,
+                ServiceControlModel.hes,
                 ServiceControlModel.service_order,
                 ServiceControlModel.quotation,
                 ServiceControlModel.component,
@@ -685,6 +730,7 @@ class Querys:
                 ServiceControlModel.invoice,
                 ServiceControlModel.invoice_date,
                 ServiceControlModel.report_id,
+                ReportModel.type_report,
             ).join(
                 ClientModel,
                 ClientModel.id == ServiceControlModel.client_id,
@@ -713,6 +759,10 @@ class Querys:
                 ComponentsModel,
                 ComponentsModel.id == ServiceControlModel.component,
                 isouter=True
+            ).join(
+                ReportModel,
+                ReportModel.id == ServiceControlModel.report_id,
+                isouter=True
             ).filter(
                 ServiceControlModel.status == 1
             )
@@ -738,6 +788,7 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    # Quqery for list the reports according to case
     def list_reports(self, data, user_id = None, state: bool = True, data_filter: list = []):
         try:
             response = list()
@@ -1191,8 +1242,18 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
-        
         return True
+
+    # Free the linked service_control when its report is deleted
+    def release_service_control_from_report(self, report_id: int):
+        try:
+            self.db.query(ServiceControlModel).filter(
+                ServiceControlModel.report_id == report_id,
+                ServiceControlModel.status == 1
+            ).update({"report_id": None, "consecutive": None})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
 
     # Query for get the data for the report
     def get_data_report_acesco(self, report_id):

@@ -21,5 +21,7 @@ class ServiceControl(BaseModel):
     invoice: Optional[int] = None
     invoice_date: Optional[str] = None
     note: Optional[str] = None
+    hes: Optional[str] = None
+    gestor: Optional[str] = None
     report_id: Optional[int] = None
     user_id: int

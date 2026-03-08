@@ -484,6 +484,8 @@ class Report:
         report_id = int(data["report_id"])
 
         self.querys.change_status_report(report_id)
+        # Liberar el control de servicio asociado si existe
+        self.querys.release_service_control_from_report(report_id)
 
         return self.tools.output(200, "Reporte eliminado con exito.")
 

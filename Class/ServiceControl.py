@@ -4,6 +4,7 @@ from Models.service_control_model import ServiceControlModel
 from Models.report_model import ReportModel
 from Models.client_model import ClientModel
 from Models.client_lines_model import ClientLinesModel
+from Models.client_user_model import ClientUserModel
 from datetime import datetime
 
 
@@ -12,6 +13,25 @@ class ServiceControl:
     def __init__(self, db):
         self.tools = Tools()
         self.querys = Querys(db)
+
+    def change_status(self, data: dict):
+        try:
+            record_id = data["record_id"]
+
+            self.querys.check_param_exists(
+                ServiceControlModel,
+                record_id,
+                "Control de servicio"
+            )
+
+            self.querys.change_status_service_control(record_id)
+
+            return self.tools.output(200, f"Registro #{record_id} eliminado correctamente.")
+
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))
 
     def create_service_control(self, data: dict):
 
@@ -37,6 +57,8 @@ class ServiceControl:
                 "invoice": data.get("invoice"),
                 "invoice_date": self.tools.format_date(data["invoice_date"]) if data.get("invoice_date") else None,
                 "note": data.get("note"),
+                "hes": data.get("hes"),
+                "gestor": data.get("gestor"),
                 "report_id": data.get("report_id"),
                 "user_id": data["user_id"],
             }
@@ -52,6 +74,16 @@ class ServiceControl:
                 data["client_line_id"],
                 "Línea"
             )
+
+            if data_save.get("solped") and data_save.get("position"):
+                duplicate = self.querys.check_solped_position_duplicate(
+                    data_save["solped"],
+                    data_save["position"]
+                )
+                if duplicate:
+                    raise CustomException(
+                        f"Ya existe un registro con la SOLPED '{data_save['solped']}' y posición '{data_save['position']}' (ID: {duplicate.id})."
+                    )
 
             self.querys.insert_data(ServiceControlModel, data_save)
 
@@ -95,6 +127,8 @@ class ServiceControl:
             "invoice": key.invoice,
             "invoice_date": str(key.invoice_date) if key.invoice_date else None,
             "note": key.note,
+            "hes": key.hes,
+            "gestor": key.gestor,
             "report_id": key.report_id,
             "user_id": key.user_id,
         }
@@ -132,8 +166,21 @@ class ServiceControl:
                 "invoice": data.get("invoice"),
                 "invoice_date": self.tools.format_date(data["invoice_date"]) if data.get("invoice_date") else None,
                 "note": data.get("note"),
+                "hes": data.get("hes"),
+                "gestor": data.get("gestor"),
                 "user_id": data["user_id"],
             }
+
+            if data_update.get("solped") and data_update.get("position"):
+                duplicate = self.querys.check_solped_position_duplicate(
+                    data_update["solped"],
+                    data_update["position"],
+                    exclude_id=record_id
+                )
+                if duplicate:
+                    raise CustomException(
+                        f"Ya existe un registro con la SOLPED '{data_update['solped']}' y posición '{data_update['position']}' (ID: {duplicate.id})."
+                    )
 
             self.querys.update_service_control(record_id, data_update)
 
@@ -168,6 +215,22 @@ class ServiceControl:
         if filters.get("service_status") and len(filters["service_status"]) > 0:
             data_filter.append(ServiceControlModel.service_status.in_(filters["service_status"]))
 
+        # Filtro multi-valor por solped
+        if filters.get("solped") and len(filters["solped"]) > 0:
+            data_filter.append(ServiceControlModel.solped.in_(filters["solped"]))
+
+        # Filtro por cliente
+        if filters.get("client_id"):
+            data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
+
+        # Filtro por línea
+        if filters.get("client_line_id"):
+            data_filter.append(ServiceControlModel.client_line_id == int(filters["client_line_id"]))
+
+        # Filtro por responsable
+        if filters.get("responsible_id"):
+            data_filter.append(ServiceControlModel.responsible_id == int(filters["responsible_id"]))
+
         result = self.querys.list_service_controls(data, data_filter=data_filter)
         data_records = result["records"]
         reg_cont = result["reg_cont"]
@@ -190,6 +253,7 @@ class ServiceControl:
                 "activity_date": str(key.activity_date),
                 "client_name": key.client_name,
                 "client_line": key.client_line,
+                "description": key.description,
                 "responsible": key.responsible_name,
                 "service_order": key.service_order,
                 "quotation": key.quotation,
@@ -200,6 +264,7 @@ class ServiceControl:
                 "valor_formateado": f"${valor:,.0f}".replace(",", "."),
                 "solped": key.solped,
                 "oc": key.oc,
+                "hes": key.hes,
                 "position": key.position,
                 "service_status": key.service_status,
                 "service_status_name": key.service_status_name,
@@ -208,6 +273,7 @@ class ServiceControl:
                 "invoice": key.invoice,
                 "invoice_date": str(key.invoice_date) if key.invoice_date else None,
                 "report_id": key.report_id,
+                "type_report": key.type_report,
             })
 
         if reg_cont % limit == 0:
@@ -285,3 +351,63 @@ class ServiceControl:
             raise ex
         except Exception as ex:
             raise CustomException(str(ex))
+
+    def convert_multiple_to_report(self, data: dict):
+        """Convierte masivamente varios controles de servicio en reportes."""
+        record_ids = data.get("record_ids", [])
+        if not record_ids:
+            raise CustomException("Debe enviar al menos un registro para convertir.")
+
+        converted = []
+        errors = []
+
+        for record_id in record_ids:
+            try:
+                sc = self.querys.get_service_control(record_id)
+                if not sc:
+                    errors.append({"id": record_id, "error": "No encontrado"})
+                    continue
+                if sc.report_id:
+                    errors.append({"id": record_id, "error": f"Ya conertido (reporte #{sc.report_id})"})
+                    continue
+
+                type_report = 1 if sc.client_id == 1 else 0
+                activity_dt = datetime.combine(sc.activity_date, datetime.min.time()) if sc.activity_date else datetime.now()
+
+                report_data = {
+                    "activity_date": activity_dt,
+                    "client_id": sc.client_id,
+                    "client_line_id": sc.client_line_id,
+                    "person_receives": sc.responsible_id,
+                    "work_zone": None,
+                    "om": sc.service_order or None,
+                    "solped": sc.solped or None,
+                    "buy_order": sc.oc or None,
+                    "position": sc.position or None,
+                    "equipment_type_id": None,
+                    "equipment_name": None,
+                    "service_description": sc.description or "",
+                    "information": sc.information or "",
+                    "service_value": sc.value or 0,
+                    "conclutions": None,
+                    "recommendations": None,
+                    "tech_1": None,
+                    "tech_2": None,
+                    "type_report": type_report,
+                    "user_id": sc.user_id,
+                }
+
+                new_report_id = self.querys.insert_data(ReportModel, report_data)
+                self.querys.update_service_control(record_id, {
+                    "report_id": new_report_id,
+                    "consecutive": new_report_id,
+                })
+                converted.append({"sc_id": record_id, "report_id": new_report_id})
+
+            except Exception as ex:
+                errors.append({"id": record_id, "error": str(ex)})
+
+        return self.tools.output(200, f"{len(converted)} reporte(s) creado(s) correctamente.", {
+            "converted": converted,
+            "errors": errors
+        })

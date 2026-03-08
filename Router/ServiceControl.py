@@ -49,3 +49,19 @@ def convert_to_report(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = ServiceControl(db).convert_to_report(data)
     return response
+
+
+@service_control_router.post('/service_control/change_status', tags=["ServiceControl"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@http_decorator
+def change_status_service_control(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = ServiceControl(db).change_status(data)
+    return response
+
+
+@service_control_router.post('/service_control/convert_multiple_to_report', tags=["ServiceControl"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def convert_multiple_to_report(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = ServiceControl(db).convert_multiple_to_report(data)
+    return response
