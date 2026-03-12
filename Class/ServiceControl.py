@@ -235,6 +235,10 @@ class ServiceControl:
         if filters.get("report_status") and len(filters["report_status"]) > 0:
             data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
 
+        # Filtro por consecutivo
+        if filters.get("consecutive"):
+            data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
+
         result = self.querys.list_service_controls(data, data_filter=data_filter)
         data_records = result["records"]
         reg_cont = result["reg_cont"]
