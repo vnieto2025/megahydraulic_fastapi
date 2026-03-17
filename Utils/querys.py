@@ -702,6 +702,22 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    def get_unique_oc_list(self, data_filter: list = []):
+        try:
+            query = self.db.query(
+                ServiceControlModel.oc
+            ).filter(
+                ServiceControlModel.status == 1,
+                ServiceControlModel.oc != None,
+                ServiceControlModel.oc != ''
+            )
+            if data_filter:
+                query = query.filter(and_(*data_filter))
+            results = query.distinct().order_by(ServiceControlModel.oc).all()
+            return [r.oc for r in results]
+        except Exception as ex:
+            raise CustomException(str(ex))
+
     # Query for list the service controls according to case
     def list_service_controls(self, data, data_filter: list = []):
         try:
