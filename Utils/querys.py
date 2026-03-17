@@ -718,6 +718,22 @@ class Querys:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    def get_unique_hes_list(self, data_filter: list = []):
+        try:
+            query = self.db.query(
+                ServiceControlModel.hes
+            ).filter(
+                ServiceControlModel.status == 1,
+                ServiceControlModel.hes != None,
+                ServiceControlModel.hes != ''
+            )
+            if data_filter:
+                query = query.filter(and_(*data_filter))
+            results = query.distinct().order_by(ServiceControlModel.hes).all()
+            return [r.hes for r in results]
+        except Exception as ex:
+            raise CustomException(str(ex))
+
     # Query for list the service controls according to case
     def list_service_controls(self, data, data_filter: list = []):
         try:

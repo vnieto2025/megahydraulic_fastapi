@@ -239,9 +239,9 @@ class ServiceControl:
         if filters.get("consecutive"):
             data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
 
-        # Filtro por HES
-        if filters.get("hes"):
-            data_filter.append(ServiceControlModel.hes.ilike(f"%{filters['hes']}%"))
+        # Filtro por HES (multi-valor)
+        if filters.get("hes") and len(filters["hes"]) > 0:
+            data_filter.append(ServiceControlModel.hes.in_(filters["hes"]))
 
         # Filtro por OC
         if filters.get("oc"):
@@ -354,8 +354,8 @@ class ServiceControl:
         if filters.get("consecutive"):
             data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
 
-        if filters.get("hes"):
-            data_filter.append(ServiceControlModel.hes.ilike(f"%{filters['hes']}%"))
+        if filters.get("hes") and len(filters["hes"]) > 0:
+            data_filter.append(ServiceControlModel.hes.in_(filters["hes"]))
 
         if filters.get("factura"):
             try:
@@ -365,6 +365,51 @@ class ServiceControl:
 
         oc_list = self.querys.get_unique_oc_list(data_filter=data_filter)
         return self.tools.output(200, "Ok.", oc_list)
+
+    def get_hes_list(self, data: dict):
+        filters = data.get("filters", {})
+        data_filter = []
+
+        if filters.get("start_date"):
+            start = datetime.strptime(filters["start_date"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.activity_date >= start)
+
+        if filters.get("end_date"):
+            end = datetime.strptime(filters["end_date"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.activity_date <= end)
+
+        if filters.get("service_status") and len(filters["service_status"]) > 0:
+            data_filter.append(ServiceControlModel.service_status.in_(filters["service_status"]))
+
+        if filters.get("report_status") and len(filters["report_status"]) > 0:
+            data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
+
+        if filters.get("solped") and len(filters["solped"]) > 0:
+            data_filter.append(ServiceControlModel.solped.in_(filters["solped"]))
+
+        if filters.get("client_id"):
+            data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
+
+        if filters.get("client_line_id"):
+            data_filter.append(ServiceControlModel.client_line_id == int(filters["client_line_id"]))
+
+        if filters.get("responsible_id"):
+            data_filter.append(ServiceControlModel.responsible_id == int(filters["responsible_id"]))
+
+        if filters.get("consecutive"):
+            data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
+
+        if filters.get("oc"):
+            data_filter.append(ServiceControlModel.oc == filters["oc"])
+
+        if filters.get("factura"):
+            try:
+                data_filter.append(ServiceControlModel.invoice == int(filters["factura"]))
+            except (ValueError, TypeError):
+                pass
+
+        hes_list = self.querys.get_unique_hes_list(data_filter=data_filter)
+        return self.tools.output(200, "Ok.", hes_list)
 
     def convert_to_report(self, data: dict):
         try:
