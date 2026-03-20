@@ -41,24 +41,24 @@ class ServiceControl:
                 "client_id": data["client_id"],
                 "client_line_id": data["client_line_id"],
                 "responsible_id": data["responsible_id"],
-                "description": data.get("description"),
-                "information": data.get("information"),
-                "service_order": data.get("service_order"),
-                "quotation": data.get("quotation"),
+                "description": data.get("description").strip() if data.get("description") else None,
+                "information": data.get("information").strip() if data.get("information") else None,
+                "service_order": data.get("service_order").strip() if data.get("service_order") else None,
+                "quotation": data.get("quotation").strip() if data.get("quotation") else None,
                 "component": data["component"],
                 "component_quantity": data.get("component_quantity"),
                 "value": data.get("value"),
-                "solped": data.get("solped"),
-                "oc": data.get("oc"),
-                "position": data.get("position"),
+                "solped": data.get("solped").strip() if data.get("solped") else None,
+                "oc": data.get("oc").strip() if data.get("oc") else None,
+                "position": data.get("position").strip() if data.get("position") else None,
                 "service_status": data["service_status"],
                 "report_status": data["report_status"],
                 "consecutive": data.get("consecutive"),
                 "invoice": data.get("invoice"),
                 "invoice_date": self.tools.format_date(data["invoice_date"]) if data.get("invoice_date") else None,
-                "note": data.get("note"),
-                "hes": data.get("hes"),
-                "gestor": data.get("gestor"),
+                "note": data.get("note").strip() if data.get("note") else None,
+                "hes": data.get("hes").strip() if data.get("hes") else None,
+                "gestor": data.get("gestor").strip() if data.get("gestor") else None,
                 "report_id": data.get("report_id"),
                 "user_id": data["user_id"],
             }
@@ -150,24 +150,24 @@ class ServiceControl:
                 "client_id": data["client_id"],
                 "client_line_id": data["client_line_id"],
                 "responsible_id": data["responsible_id"],
-                "description": data.get("description"),
-                "information": data.get("information"),
-                "service_order": data.get("service_order"),
-                "quotation": data.get("quotation"),
+                "description": data.get("description").strip() if data.get("description") else None,
+                "information": data.get("information").strip() if data.get("information") else None,
+                "service_order": data.get("service_order").strip() if data.get("service_order") else None,
+                "quotation": data.get("quotation").strip() if data.get("quotation") else None,
                 "component": data["component"],
                 "component_quantity": data.get("component_quantity"),
                 "value": data.get("value"),
-                "solped": data.get("solped"),
-                "oc": data.get("oc"),
-                "position": data.get("position"),
+                "solped": data.get("solped").strip() if data.get("solped") else None,
+                "oc": data.get("oc").strip() if data.get("oc") else None,
+                "position": data.get("position").strip() if data.get("position") else None,
                 "service_status": data["service_status"],
                 "report_status": data["report_status"],
                 "consecutive": data.get("consecutive"),
                 "invoice": data.get("invoice"),
                 "invoice_date": self.tools.format_date(data["invoice_date"]) if data.get("invoice_date") else None,
-                "note": data.get("note"),
-                "hes": data.get("hes"),
-                "gestor": data.get("gestor"),
+                "note": data.get("note").strip() if data.get("note") else None,
+                "hes": data.get("hes").strip() if data.get("hes") else None,
+                "gestor": data.get("gestor").strip() if data.get("gestor") else None,
                 "user_id": data["user_id"],
             }
 
@@ -253,6 +253,15 @@ class ServiceControl:
                 data_filter.append(ServiceControlModel.invoice == int(filters["factura"]))
             except (ValueError, TypeError):
                 pass
+
+        # Filtro por rango de fecha de facturación
+        if filters.get("invoice_date_start"):
+            inv_start = datetime.strptime(filters["invoice_date_start"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date >= inv_start)
+
+        if filters.get("invoice_date_end"):
+            inv_end = datetime.strptime(filters["invoice_date_end"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date <= inv_end)
 
         result = self.querys.list_service_controls(data, data_filter=data_filter)
         data_records = result["records"]
@@ -363,6 +372,15 @@ class ServiceControl:
             except (ValueError, TypeError):
                 pass
 
+        # Filtro por rango de fecha de facturación
+        if filters.get("invoice_date_start"):
+            inv_start = datetime.strptime(filters["invoice_date_start"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date >= inv_start)
+
+        if filters.get("invoice_date_end"):
+            inv_end = datetime.strptime(filters["invoice_date_end"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date <= inv_end)
+
         oc_list = self.querys.get_unique_oc_list(data_filter=data_filter)
         return self.tools.output(200, "Ok.", oc_list)
 
@@ -407,6 +425,15 @@ class ServiceControl:
                 data_filter.append(ServiceControlModel.invoice == int(filters["factura"]))
             except (ValueError, TypeError):
                 pass
+
+        # Filtro por rango de fecha de facturación
+        if filters.get("invoice_date_start"):
+            inv_start = datetime.strptime(filters["invoice_date_start"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date >= inv_start)
+
+        if filters.get("invoice_date_end"):
+            inv_end = datetime.strptime(filters["invoice_date_end"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date <= inv_end)
 
         hes_list = self.querys.get_unique_hes_list(data_filter=data_filter)
         return self.tools.output(200, "Ok.", hes_list)
