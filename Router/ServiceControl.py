@@ -81,3 +81,11 @@ def get_hes_list(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = ServiceControl(db).get_hes_list(data)
     return response
+
+
+@service_control_router.post('/service_control/get_solped_list', tags=["ServiceControl"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_solped_list(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = ServiceControl(db).get_solped_list(data)
+    return response

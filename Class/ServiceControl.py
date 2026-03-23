@@ -6,6 +6,7 @@ from Models.client_model import ClientModel
 from Models.client_lines_model import ClientLinesModel
 from Models.client_user_model import ClientUserModel
 from datetime import datetime
+from sqlalchemy import or_
 
 
 class ServiceControl:
@@ -215,9 +216,24 @@ class ServiceControl:
         if filters.get("service_status") and len(filters["service_status"]) > 0:
             data_filter.append(ServiceControlModel.service_status.in_(filters["service_status"]))
 
-        # Filtro multi-valor por solped
-        if filters.get("solped") and len(filters["solped"]) > 0:
-            data_filter.append(ServiceControlModel.solped.in_(filters["solped"]))
+        # Filtro multi-valor por solped (con soporte para vacíos)
+        solped_values = filters.get("solped") or []
+        if len(solped_values) > 0:
+            has_empty_sp = "__EMPTY__" in solped_values
+            real_sp = [v for v in solped_values if v != "__EMPTY__"]
+            if has_empty_sp and real_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped.in_(real_sp),
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif has_empty_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif real_sp:
+                data_filter.append(ServiceControlModel.solped.in_(real_sp))
 
         # Filtro por cliente
         if filters.get("client_id"):
@@ -243,9 +259,24 @@ class ServiceControl:
         if filters.get("hes") and len(filters["hes"]) > 0:
             data_filter.append(ServiceControlModel.hes.in_(filters["hes"]))
 
-        # Filtro por OC
-        if filters.get("oc"):
-            data_filter.append(ServiceControlModel.oc == filters["oc"])
+        # Filtro por OC (multi-valor con soporte para vacíos)
+        if filters.get("oc") and len(filters["oc"]) > 0:
+            oc_values = filters["oc"]
+            has_empty = "__EMPTY__" in oc_values
+            real_values = [v for v in oc_values if v != "__EMPTY__"]
+            if has_empty and real_values:
+                data_filter.append(or_(
+                    ServiceControlModel.oc.in_(real_values),
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif has_empty:
+                data_filter.append(or_(
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif real_values:
+                data_filter.append(ServiceControlModel.oc.in_(real_values))
 
         # Filtro por factura (invoice)
         if filters.get("factura"):
@@ -348,8 +379,23 @@ class ServiceControl:
         if filters.get("report_status") and len(filters["report_status"]) > 0:
             data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
 
-        if filters.get("solped") and len(filters["solped"]) > 0:
-            data_filter.append(ServiceControlModel.solped.in_(filters["solped"]))
+        solped_values = filters.get("solped") or []
+        if len(solped_values) > 0:
+            has_empty_sp = "__EMPTY__" in solped_values
+            real_sp = [v for v in solped_values if v != "__EMPTY__"]
+            if has_empty_sp and real_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped.in_(real_sp),
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif has_empty_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif real_sp:
+                data_filter.append(ServiceControlModel.solped.in_(real_sp))
 
         if filters.get("client_id"):
             data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
@@ -402,8 +448,23 @@ class ServiceControl:
         if filters.get("report_status") and len(filters["report_status"]) > 0:
             data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
 
-        if filters.get("solped") and len(filters["solped"]) > 0:
-            data_filter.append(ServiceControlModel.solped.in_(filters["solped"]))
+        solped_values = filters.get("solped") or []
+        if len(solped_values) > 0:
+            has_empty_sp = "__EMPTY__" in solped_values
+            real_sp = [v for v in solped_values if v != "__EMPTY__"]
+            if has_empty_sp and real_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped.in_(real_sp),
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif has_empty_sp:
+                data_filter.append(or_(
+                    ServiceControlModel.solped == None,
+                    ServiceControlModel.solped == ''
+                ))
+            elif real_sp:
+                data_filter.append(ServiceControlModel.solped.in_(real_sp))
 
         if filters.get("client_id"):
             data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
@@ -417,8 +478,23 @@ class ServiceControl:
         if filters.get("consecutive"):
             data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
 
-        if filters.get("oc"):
-            data_filter.append(ServiceControlModel.oc == filters["oc"])
+        if filters.get("oc") and len(filters["oc"]) > 0:
+            oc_values = filters["oc"]
+            has_empty = "__EMPTY__" in oc_values
+            real_values = [v for v in oc_values if v != "__EMPTY__"]
+            if has_empty and real_values:
+                data_filter.append(or_(
+                    ServiceControlModel.oc.in_(real_values),
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif has_empty:
+                data_filter.append(or_(
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif real_values:
+                data_filter.append(ServiceControlModel.oc.in_(real_values))
 
         if filters.get("factura"):
             try:
@@ -437,6 +513,74 @@ class ServiceControl:
 
         hes_list = self.querys.get_unique_hes_list(data_filter=data_filter)
         return self.tools.output(200, "Ok.", hes_list)
+
+    def get_solped_list(self, data: dict):
+        filters = data.get("filters", {})
+        data_filter = []
+
+        if filters.get("start_date"):
+            start = datetime.strptime(filters["start_date"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.activity_date >= start)
+
+        if filters.get("end_date"):
+            end = datetime.strptime(filters["end_date"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.activity_date <= end)
+
+        if filters.get("service_status") and len(filters["service_status"]) > 0:
+            data_filter.append(ServiceControlModel.service_status.in_(filters["service_status"]))
+
+        if filters.get("report_status") and len(filters["report_status"]) > 0:
+            data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
+
+        if filters.get("client_id"):
+            data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
+
+        if filters.get("client_line_id"):
+            data_filter.append(ServiceControlModel.client_line_id == int(filters["client_line_id"]))
+
+        if filters.get("responsible_id"):
+            data_filter.append(ServiceControlModel.responsible_id == int(filters["responsible_id"]))
+
+        if filters.get("consecutive"):
+            data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
+
+        if filters.get("hes") and len(filters["hes"]) > 0:
+            data_filter.append(ServiceControlModel.hes.in_(filters["hes"]))
+
+        if filters.get("oc") and len(filters["oc"]) > 0:
+            oc_values = filters["oc"]
+            has_empty = "__EMPTY__" in oc_values
+            real_values = [v for v in oc_values if v != "__EMPTY__"]
+            if has_empty and real_values:
+                data_filter.append(or_(
+                    ServiceControlModel.oc.in_(real_values),
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif has_empty:
+                data_filter.append(or_(
+                    ServiceControlModel.oc == None,
+                    ServiceControlModel.oc == ''
+                ))
+            elif real_values:
+                data_filter.append(ServiceControlModel.oc.in_(real_values))
+
+        if filters.get("factura"):
+            try:
+                data_filter.append(ServiceControlModel.invoice == int(filters["factura"]))
+            except (ValueError, TypeError):
+                pass
+
+        if filters.get("invoice_date_start"):
+            inv_start = datetime.strptime(filters["invoice_date_start"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date >= inv_start)
+
+        if filters.get("invoice_date_end"):
+            inv_end = datetime.strptime(filters["invoice_date_end"], "%Y-%m-%d").date()
+            data_filter.append(ServiceControlModel.invoice_date <= inv_end)
+
+        solped_list = self.querys.get_unique_solped_list(data_filter=data_filter)
+        return self.tools.output(200, "Ok.", solped_list)
 
     def convert_to_report(self, data: dict):
         try:

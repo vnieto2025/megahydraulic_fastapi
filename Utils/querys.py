@@ -23,7 +23,7 @@ from Models.report_status_model import ReportStatusModel
 from Models.components_model import ComponentsModel
 from Models.service_control_model import ServiceControlModel
 from Models.components_model import ComponentsModel
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
 
 class Querys:
 
@@ -714,7 +714,19 @@ class Querys:
             if data_filter:
                 query = query.filter(and_(*data_filter))
             results = query.distinct().order_by(ServiceControlModel.oc).all()
-            return [r.oc for r in results]
+            oc_list = [r.oc for r in results]
+
+            # Verificar si existen registros con OC vacía o nula
+            empty_query = self.db.query(ServiceControlModel.id).filter(
+                ServiceControlModel.status == 1,
+                or_(ServiceControlModel.oc == None, ServiceControlModel.oc == '')
+            )
+            if data_filter:
+                empty_query = empty_query.filter(and_(*data_filter))
+            if empty_query.first() is not None:
+                oc_list.append('__EMPTY__')
+
+            return oc_list
         except Exception as ex:
             raise CustomException(str(ex))
 
@@ -731,6 +743,34 @@ class Querys:
                 query = query.filter(and_(*data_filter))
             results = query.distinct().order_by(ServiceControlModel.hes).all()
             return [r.hes for r in results]
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_unique_solped_list(self, data_filter: list = []):
+        try:
+            query = self.db.query(
+                ServiceControlModel.solped
+            ).filter(
+                ServiceControlModel.status == 1,
+                ServiceControlModel.solped != None,
+                ServiceControlModel.solped != ''
+            )
+            if data_filter:
+                query = query.filter(and_(*data_filter))
+            results = query.distinct().order_by(ServiceControlModel.solped).all()
+            solped_list = [r.solped for r in results]
+
+            # Verificar si existen registros con solped vacía o nula
+            empty_query = self.db.query(ServiceControlModel.id).filter(
+                ServiceControlModel.status == 1,
+                or_(ServiceControlModel.solped == None, ServiceControlModel.solped == '')
+            )
+            if data_filter:
+                empty_query = empty_query.filter(and_(*data_filter))
+            if empty_query.first() is not None:
+                solped_list.append('__EMPTY__')
+
+            return solped_list
         except Exception as ex:
             raise CustomException(str(ex))
 
