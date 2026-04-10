@@ -7,6 +7,7 @@ from Models.client_lines_model import ClientLinesModel
 from Models.client_user_model import ClientUserModel
 from datetime import datetime
 from sqlalchemy import or_
+import traceback
 
 
 class ServiceControl:
@@ -184,6 +185,15 @@ class ServiceControl:
                     )
 
             self.querys.update_service_control(record_id, data_update)
+
+            # Si el registro tiene un reporte asociado, sincronizar campos comunes
+            sc_record = self.querys.get_service_control(record_id)
+            if sc_record and sc_record.report_id:
+                try:
+                    self.querys.sync_report_fields_from_sc(sc_record.report_id, data_update)
+                except Exception as sync_ex:
+                    traceback.print_exc()
+                    print(f"[sync_report_on_sc_edit] Error: {str(sync_ex)}")
 
             return self.tools.output(200, "Control de servicio actualizado correctamente.")
 

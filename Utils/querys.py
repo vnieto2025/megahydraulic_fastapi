@@ -23,6 +23,7 @@ from Models.report_status_model import ReportStatusModel
 from Models.components_model import ComponentsModel
 from Models.service_control_model import ServiceControlModel
 from Models.components_model import ComponentsModel
+from datetime import datetime
 from sqlalchemy import func, and_, or_
 
 class Querys:
@@ -700,6 +701,53 @@ class Querys:
             self.db.query(ServiceControlModel).filter_by(id=record_id).update(data_update)
             self.db.commit()
         except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_service_control_by_report_id(self, report_id: int):
+        try:
+            return self.db.query(ServiceControlModel).filter(
+                ServiceControlModel.report_id == report_id,
+                ServiceControlModel.status == 1
+            ).first()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def sync_report_fields_from_sc(self, report_id: int, data: dict):
+        """Actualiza solo los campos comunes en el reporte a partir de datos del service_control."""
+        try:
+            # Forzar recarga desde BD para evitar cache de sesión
+            self.db.expire_all()
+            report = self.db.query(ReportModel).filter(
+                ReportModel.id == report_id,
+                ReportModel.status == 1
+            ).first()
+            if not report:
+                print(f"[sync_report_fields_from_sc] Reporte #{report_id} no encontrado o inactivo.")
+                return
+            # Convertir activity_date a datetime si es string
+            activity_date = data["activity_date"]
+            if isinstance(activity_date, str):
+                try:
+                    activity_date = datetime.strptime(activity_date, "%Y-%m-%d")
+                except ValueError:
+                    activity_date = datetime.strptime(activity_date, "%d-%m-%Y")
+            report.activity_date = activity_date
+            report.client_id = data["client_id"]
+            report.client_line_id = data["client_line_id"]
+            report.person_receives = str(data["responsible_id"])
+            report.om = data.get("service_order")
+            report.solped = data.get("solped")
+            report.buy_order = data.get("oc")
+            report.position = data.get("position")
+            report.service_description = data.get("description")
+            report.information = data.get("information")
+            # service_value solo si el reporte es de tipo Acesco (type_report != 0)
+            if report.type_report != 0 and data.get("value") is not None:
+                report.service_value = data["value"]
+            self.db.commit()
+        except Exception as ex:
+            import traceback
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def get_unique_oc_list(self, data_filter: list = []):

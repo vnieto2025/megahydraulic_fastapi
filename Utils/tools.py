@@ -76,9 +76,13 @@ class Tools:
 
     # Función para formatear las fechas    
     def format_date(self, date):
-        fecha_objeto = datetime.strptime(date, "%d-%m-%Y")
-        fecha_formateada = fecha_objeto.strftime("%Y-%m-%d")
-        return fecha_formateada
+        for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                fecha_objeto = datetime.strptime(date, fmt)
+                return fecha_objeto.strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        raise ValueError(f"Formato de fecha no reconocido: {date}")
 
     # Función para formatear los numeros    
     def format_number(self, numero):

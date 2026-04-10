@@ -234,6 +234,30 @@ class Report:
             # No bloqueamos la creación del reporte si falla el sync
             print(f"[sync_service_control] Error: {str(ex)}")
 
+    def _sync_service_control_on_edit(self, data: dict, report_id: int, service_value=None):
+        """Sincroniza los campos comunes al service_control asociado al reporte, si existe."""
+        try:
+            sc_record = self.querys.get_service_control_by_report_id(report_id)
+            if not sc_record:
+                return
+            sc_update = {
+                "activity_date": self.tools.format_date(data["activity_date"]),
+                "client_id": data["client_id"],
+                "client_line_id": data["client_line_id"],
+                "responsible_id": data["person_receives"],
+                "service_order": data.get("om"),
+                "solped": data.get("solped"),
+                "oc": data.get("buy_order"),
+                "position": data.get("position"),
+                "description": data.get("service_description"),
+                "information": data.get("information"),
+            }
+            if service_value is not None:
+                sc_update["value"] = service_value
+            self.querys.update_service_control(sc_record.id, sc_update)
+        except Exception as ex:
+            print(f"[_sync_service_control_on_edit] Error: {str(ex)}")
+
     # Busca el prefijo que indica el tipo de archivo, como data:image/jpeg;base64,
     def extract_file_extension(self, file_base64: str):
         match = re.match(r"data:image/(?P<ext>\w+);base64,", file_base64)
@@ -466,6 +490,8 @@ class Report:
                 self.proccess_images(data["report_id"], imagenes)
             else:
                 self.querys.deactive_data(ReportFilesModel, data["report_id"])
+
+            self._sync_service_control_on_edit(data_save, data["report_id"])
 
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 
@@ -726,6 +752,8 @@ class Report:
                 self.proccess_attachs_acesco(data["report_id"], anexos)
             else:
                 self.querys.deactive_data(ReportAttachFilesModel, data["report_id"])
+
+            self._sync_service_control_on_edit(data_save, data["report_id"], service_value=data.get("service_value"))
 
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 
