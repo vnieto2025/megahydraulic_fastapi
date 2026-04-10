@@ -331,6 +331,7 @@ class ServiceControl:
                 "position": key.position,
                 "service_status": key.service_status,
                 "service_status_name": key.service_status_name,
+                "report_status": key.report_status,
                 "report_status_name": key.report_status_name,
                 "consecutive": key.consecutive,
                 "invoice": key.invoice,
@@ -581,6 +582,36 @@ class ServiceControl:
 
         solped_list = self.querys.get_unique_solped_list(data_filter=data_filter)
         return self.tools.output(200, "Ok.", solped_list)
+
+    def update_inline_status(self, data: dict):
+        try:
+            record_id = data.get("record_id")
+            if not record_id:
+                raise CustomException("El campo record_id es requerido.")
+
+            self.querys.check_param_exists(
+                ServiceControlModel,
+                record_id,
+                "Control de servicio"
+            )
+
+            data_update = {}
+            if "service_status" in data and data["service_status"] is not None:
+                data_update["service_status"] = int(data["service_status"])
+            if "report_status" in data and data["report_status"] is not None:
+                data_update["report_status"] = int(data["report_status"])
+
+            if not data_update:
+                raise CustomException("No se proporcionaron campos para actualizar.")
+
+            self.querys.update_service_control(record_id, data_update)
+
+            return self.tools.output(200, "Estado actualizado correctamente.")
+
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))
 
     def convert_to_report(self, data: dict):
         try:

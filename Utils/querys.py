@@ -797,6 +797,7 @@ class Querys:
                 ServiceControlModel.position,
                 ServiceControlModel.service_status,
                 ServiceStatusModel.name.label('service_status_name'),
+                ServiceControlModel.report_status,
                 ReportStatusModel.name.label('report_status_name'),
                 ServiceControlModel.consecutive,
                 ServiceControlModel.invoice,
