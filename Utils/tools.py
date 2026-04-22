@@ -453,12 +453,12 @@ class Tools:
             )
 
         image_paths = data["files"]
-        if image_paths:
+        max_height = 60  # Altura mínima para imágenes
+        if len(image_paths) > 0:
             imagen_antes = image_paths[0]["path"]
-            imagen_despues = image_paths[1]["path"]
-            max_height = 60  # Altura mínima para imágenes
-
             self.ajust_images_acesco(pdf, imagen_antes, x=100, y=330, max_height=max_height, page_height=legal[1])
+        if len(image_paths) > 1:
+            imagen_despues = image_paths[1]["path"]
             self.ajust_images_acesco(pdf, imagen_despues, x=100, y=208, max_height=max_height, page_height=legal[1])
 
         # Guardar el PDF con los datos escritos en el buffer
