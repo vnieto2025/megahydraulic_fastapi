@@ -610,6 +610,8 @@ class ServiceControl:
                 data_update["service_status"] = int(data["service_status"])
             if "report_status" in data and data["report_status"] is not None:
                 data_update["report_status"] = int(data["report_status"])
+            if "hes" in data:
+                data_update["hes"] = data["hes"].strip() if data["hes"] else None
 
             if not data_update:
                 raise CustomException("No se proporcionaron campos para actualizar.")
