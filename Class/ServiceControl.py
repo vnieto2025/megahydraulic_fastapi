@@ -612,6 +612,10 @@ class ServiceControl:
                 data_update["report_status"] = int(data["report_status"])
             if "hes" in data:
                 data_update["hes"] = data["hes"].strip() if data["hes"] else None
+            if "invoice" in data:
+                data_update["invoice"] = int(data["invoice"]) if data["invoice"] is not None else None
+            if "invoice_date" in data:
+                data_update["invoice_date"] = self.tools.format_date(data["invoice_date"]) if data["invoice_date"] else None
 
             if not data_update:
                 raise CustomException("No se proporcionaron campos para actualizar.")
