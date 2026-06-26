@@ -45,6 +45,13 @@ def change_status_report(request: Request, db: Session = Depends(get_db)):
     response = Report(db).change_status_report(data)
     return response
 
+@report_router.post('/reports/change_status_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1]))])
+@http_decorator
+def change_status_report_acesco(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = Report(db).change_status_report_acesco(data)
+    return response
+
 @report_router.post('/reports/create_report_acesco', tags=["Reports"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def create_report_acesco(request: Request, db: Session = Depends(get_db)):

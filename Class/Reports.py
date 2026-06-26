@@ -515,6 +515,17 @@ class Report:
 
         return self.tools.output(200, "Reporte eliminado con exito.")
 
+    # Function for change status of an acesco report
+    def change_status_report_acesco(self, data: dict):
+
+        report_id = int(data["report_id"])
+
+        self.querys.change_status_report_acesco(report_id)
+        # Liberar el control de servicio asociado si existe
+        self.querys.release_service_control_from_report(report_id)
+
+        return self.tools.output(200, "Reporte eliminado con exito.")
+
     # Funcion for create a Acesco report
     def create_report_acesco(self, data):
 

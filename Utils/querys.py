@@ -891,7 +891,13 @@ class Querys:
             if data_filter:
                 query = query.filter(and_(*data_filter))
 
-            query = query.order_by(ServiceControlModel.id.desc())
+            order_by = data.get("order_by")
+            order_dir = data.get("order_dir")
+            if order_by == "position" and order_dir in ("asc", "desc"):
+                position_order = ServiceControlModel.position.asc() if order_dir == "asc" else ServiceControlModel.position.desc()
+                query = query.order_by(position_order, ServiceControlModel.id.desc())
+            else:
+                query = query.order_by(ServiceControlModel.id.desc())
 
             reg_cont = query.count()
 
@@ -1360,6 +1366,23 @@ class Querys:
             ).update({"status": 0})                     
             self.db.commit()
                 
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+        return True
+
+    # Query for change status of an acesco report (guarded by type_report to avoid touching regular reports)
+    def change_status_report_acesco(self, report_id: int):
+
+        try:
+            self.db.query(
+                ReportModel
+            ).filter_by(
+                id = report_id,
+                type_report = 1
+            ).update({"status": 0})
+            self.db.commit()
+
         except Exception as ex:
             raise CustomException(str(ex))
 
