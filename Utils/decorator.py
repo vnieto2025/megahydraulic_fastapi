@@ -120,7 +120,15 @@ def http_decorator(func):
                             else:
                                 return obj
                         
-                        if request.url.path in ["/reports/create_report", "/reports/edit_report", "/reports/create_report_acesco", "/reports/edit_report_acesco"]:
+                        PATHS_WITH_IMAGES = [
+                            "/reports/create_report",
+                            "/reports/edit_report",
+                            "/reports/create_report_acesco",
+                            "/reports/edit_report_acesco",
+                            "/service_control/create",
+                            "/service_control/update",
+                        ]
+                        if request.url.path in PATHS_WITH_IMAGES:
                             body = clean_base64_data(body)
                         
                         # Acceder al contenido del JSONResponse

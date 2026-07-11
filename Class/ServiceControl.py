@@ -1,6 +1,8 @@
 from Utils.tools import Tools, CustomException
 from Utils.querys import Querys
 from Models.service_control_model import ServiceControlModel
+from Models.service_control_files_model import ServiceControlFilesModel
+from Models.report_files_model import ReportFilesModel
 from Models.report_model import ReportModel
 from Models.client_model import ClientModel
 from Models.client_lines_model import ClientLinesModel
@@ -8,6 +10,14 @@ from Models.client_user_model import ClientUserModel
 from datetime import datetime
 from sqlalchemy import or_
 import traceback
+import os
+import base64
+import uuid
+import re
+import io
+from PIL import Image
+
+UPLOAD_FOLDER = "Uploads/"
 
 
 class ServiceControl:
@@ -87,7 +97,11 @@ class ServiceControl:
                         f"Ya existe un registro con la SOLPED '{data_save['solped']}' y posición '{data_save['position']}' (ID: {duplicate.id})."
                     )
 
-            self.querys.insert_data(ServiceControlModel, data_save)
+            record_id = self.querys.insert_data(ServiceControlModel, data_save)
+
+            fotos = data.get("fotos") or []
+            if fotos:
+                self.process_images(record_id, fotos)
 
             return self.tools.output(201, "Control de servicio guardado correctamente.")
 
@@ -95,6 +109,44 @@ class ServiceControl:
             raise ex
         except Exception as ex:
             raise CustomException(str(ex))
+
+    def _extract_extension(self, file_base64: str):
+        match = re.match(r"data:image/(?P<ext>\w+);base64,", file_base64)
+        if not match:
+            raise ValueError("Formato de imagen no válido")
+        return match.group("ext")
+
+    def process_images(self, service_control_id: int, fotos: list):
+        for index, foto in enumerate(fotos):
+            img_data = foto.get("img", "")
+            if not img_data.startswith("data:image/"):
+                continue
+            try:
+                file_extension = self._extract_extension(img_data)
+                base64_data = re.sub(r"^data:image/\w+;base64,", "", img_data)
+                file_data = base64.b64decode(base64_data)
+                image = Image.open(io.BytesIO(file_data))
+                compressed_io = io.BytesIO()
+                image = image.convert("RGB")
+                image.save(compressed_io, format="JPEG", optimize=True, quality=75)
+                compressed_io.seek(0)
+                compressed_data = compressed_io.read()
+            except Exception as e:
+                raise CustomException(f"Error al procesar la imagen {index + 1}: {str(e)}")
+
+            file_name = f"{uuid.uuid4()}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, file_name)
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(compressed_data)
+            except Exception as e:
+                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
+
+            self.querys.insert_data(ServiceControlFilesModel, {
+                "service_control_id": service_control_id,
+                "path": file_path,
+                "description": foto.get("description"),
+            })
 
     def get_service_control(self, data: dict):
 
@@ -134,6 +186,12 @@ class ServiceControl:
             "report_id": key.report_id,
             "user_id": key.user_id,
         }
+
+        sc_files = self.querys.get_service_control_files(record_id)
+        result["files"] = [
+            {"id": f.id, "path": f.path, "description": f.description}
+            for f in sc_files
+        ]
 
         return self.tools.output(200, "Ok.", result)
 
@@ -186,7 +244,11 @@ class ServiceControl:
 
             self.querys.update_service_control(record_id, data_update)
 
-            # Si el registro tiene un reporte asociado, sincronizar campos comunes
+            fotos_nuevas = data.get("fotos_nuevas") or []
+            if fotos_nuevas:
+                self.process_images(record_id, fotos_nuevas)
+
+            # Si el registro tiene un reporte asociado, sincronizar campos comunes y fotos
             sc_record = self.querys.get_service_control(record_id)
             if sc_record and sc_record.report_id:
                 try:
@@ -194,6 +256,8 @@ class ServiceControl:
                 except Exception as sync_ex:
                     traceback.print_exc()
                     print(f"[sync_report_on_sc_edit] Error: {str(sync_ex)}")
+                if fotos_nuevas:
+                    self._sync_report_files_from_sc(record_id, sc_record.report_id)
 
             return self.tools.output(200, "Control de servicio actualizado correctamente.")
 
@@ -629,6 +693,43 @@ class ServiceControl:
         except Exception as ex:
             raise CustomException(str(ex))
 
+    def delete_sc_file(self, data: dict):
+        try:
+            file_id = int(data["file_id"])
+            service_control_id = int(data["service_control_id"])
+            sc_file = self.querys.get_sc_file_by_id(file_id)
+            self.querys.delete_sc_file(file_id, service_control_id)
+            if sc_file:
+                sc_record = self.querys.get_service_control(service_control_id)
+                if sc_record and sc_record.report_id:
+                    try:
+                        self.querys.deactive_report_file_by_path(sc_record.report_id, sc_file.path)
+                    except Exception as sync_ex:
+                        print(f"[delete_sc_file sync] Error: {str(sync_ex)}")
+            return self.tools.output(200, "Foto eliminada correctamente.")
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def _copy_sc_files_to_report(self, service_control_id: int, report_id: int):
+        """Copia las fotos del control de servicio a la tabla report_files del reporte vinculado."""
+        sc_files = self.querys.get_service_control_files(service_control_id)
+        for sc_file in sc_files:
+            self.querys.insert_data(ReportFilesModel, {
+                "report_id": report_id,
+                "path": sc_file.path,
+                "description": sc_file.description,
+            })
+
+    def _sync_report_files_from_sc(self, sc_id: int, report_id: int):
+        """En edición de SC: reemplaza los archivos del reporte vinculado con los actuales del SC."""
+        try:
+            self.querys.deactive_data(ReportFilesModel, report_id)
+            self._copy_sc_files_to_report(sc_id, report_id)
+        except Exception as ex:
+            print(f"[_sync_report_files_from_sc] Error: {str(ex)}")
+
     def convert_to_report(self, data: dict):
         try:
             record_id = data["record_id"]
@@ -675,6 +776,8 @@ class ServiceControl:
                 "report_id": new_report_id,
                 "consecutive": new_report_id,
             })
+
+            self._copy_sc_files_to_report(record_id, new_report_id)
 
             return self.tools.output(200, "Reporte creado exitosamente.", {"report_id": new_report_id})
 
@@ -733,6 +836,7 @@ class ServiceControl:
                     "report_id": new_report_id,
                     "consecutive": new_report_id,
                 })
+                self._copy_sc_files_to_report(record_id, new_report_id)
                 converted.append({"sc_id": record_id, "report_id": new_report_id})
 
             except Exception as ex:

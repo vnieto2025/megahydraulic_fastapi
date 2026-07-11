@@ -97,3 +97,11 @@ def update_inline_status(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = ServiceControl(db).update_inline_status(data)
     return response
+
+
+@service_control_router.post('/service_control/delete_sc_file', tags=["ServiceControl"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def delete_sc_file(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = ServiceControl(db).delete_sc_file(data)
+    return response

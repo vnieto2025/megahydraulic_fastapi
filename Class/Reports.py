@@ -13,6 +13,7 @@ from Models.report_type_service_model import ReportTypeServiceModel
 from Models.report_files_model import ReportFilesModel
 from Models.report_attach_files_model import ReportAttachFilesModel
 from Models.service_control_model import ServiceControlModel
+from Models.service_control_files_model import ServiceControlFilesModel
 from Utils.rules import Rules
 from datetime import datetime
 import os
@@ -134,7 +135,9 @@ class Report:
             if imagenes:
                 self.proccess_images(id_report, imagenes)
 
-            self._sync_service_control(data, id_report, service_value=0)
+            sc_id = self._sync_service_control(data, id_report, service_value=0)
+            if sc_id and imagenes:
+                self._copy_report_files_to_sc(id_report, sc_id)
 
             return self.tools.output(201, "Reporte creado exitosamente.", id_report)
 
@@ -229,10 +232,12 @@ class Report:
                 "report_id": id_report,
                 "user_id": data["user_id"],
             }
-            self.querys.insert_data(ServiceControlModel, sc_data)
+            sc_id = self.querys.insert_data(ServiceControlModel, sc_data)
+            return sc_id
         except Exception as ex:
             # No bloqueamos la creación del reporte si falla el sync
             print(f"[sync_service_control] Error: {str(ex)}")
+            return None
 
     def _sync_service_control_on_edit(self, data: dict, report_id: int, service_value=None):
         """Sincroniza los campos comunes al service_control asociado al reporte, si existe."""
@@ -257,6 +262,30 @@ class Report:
             self.querys.update_service_control(sc_record.id, sc_update)
         except Exception as ex:
             print(f"[_sync_service_control_on_edit] Error: {str(ex)}")
+
+    def _copy_report_files_to_sc(self, report_id: int, sc_id: int):
+        """Copia los paths de report_files al service_control_files del SC vinculado."""
+        try:
+            report_files = self.querys.get_report_files(report_id)
+            for rf in report_files:
+                self.querys.insert_data(ServiceControlFilesModel, {
+                    "service_control_id": sc_id,
+                    "path": rf.path,
+                    "description": rf.description,
+                })
+        except Exception as ex:
+            print(f"[_copy_report_files_to_sc] Error: {str(ex)}")
+
+    def _sync_sc_files_from_report(self, report_id: int):
+        """En edición de reporte: reemplaza los archivos del SC vinculado con los actuales del reporte."""
+        try:
+            sc = self.querys.get_service_control_by_report_id(report_id)
+            if not sc:
+                return
+            self.querys.deactive_sc_files(sc.id)
+            self._copy_report_files_to_sc(report_id, sc.id)
+        except Exception as ex:
+            print(f"[_sync_sc_files_from_report] Error: {str(ex)}")
 
     # Busca el prefijo que indica el tipo de archivo, como data:image/jpeg;base64,
     def extract_file_extension(self, file_base64: str):
@@ -492,6 +521,7 @@ class Report:
                 self.querys.deactive_data(ReportFilesModel, data["report_id"])
 
             self._sync_service_control_on_edit(data_save, data["report_id"])
+            self._sync_sc_files_from_report(data["report_id"])
 
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 
@@ -581,7 +611,9 @@ class Report:
             if anexos:
                 self.proccess_attachs_acesco(id_report, anexos)
 
-            self._sync_service_control(data, id_report, service_value=data.get("service_value", 0))
+            sc_id = self._sync_service_control(data, id_report, service_value=data.get("service_value", 0))
+            if sc_id and imagenes:
+                self._copy_report_files_to_sc(id_report, sc_id)
 
             return self.tools.output(201, "Reporte creado exitosamente.", id_report)
 
@@ -765,6 +797,7 @@ class Report:
                 self.querys.deactive_data(ReportAttachFilesModel, data["report_id"])
 
             self._sync_service_control_on_edit(data_save, data["report_id"], service_value=data.get("service_value"))
+            self._sync_sc_files_from_report(data["report_id"])
 
             return self.tools.output(201, "Reporte editado exitosamente.", data["report_id"])
 

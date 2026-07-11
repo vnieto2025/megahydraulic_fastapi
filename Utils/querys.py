@@ -22,6 +22,7 @@ from Models.service_status_model import ServiceStatusModel
 from Models.report_status_model import ReportStatusModel
 from Models.components_model import ComponentsModel
 from Models.service_control_model import ServiceControlModel
+from Models.service_control_files_model import ServiceControlFilesModel
 from Models.components_model import ComponentsModel
 from datetime import datetime
 from sqlalchemy import func, and_, or_
@@ -1387,6 +1388,83 @@ class Querys:
             raise CustomException(str(ex))
 
         return True
+
+    # Soft-delete all active files for a service_control record
+    def deactive_sc_files(self, service_control_id: int):
+        try:
+            self.db.query(ServiceControlFilesModel).filter(
+                ServiceControlFilesModel.service_control_id == service_control_id,
+                ServiceControlFilesModel.status == 1,
+            ).update({"status": 0})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Fetch a single service_control_files row by id (to read its path before deleting)
+    def get_sc_file_by_id(self, file_id: int):
+        try:
+            return self.db.query(ServiceControlFilesModel).filter(
+                ServiceControlFilesModel.id == file_id,
+                ServiceControlFilesModel.status == 1,
+            ).first()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Soft-delete a report_files row matching a specific path (used when SC file is deleted)
+    def deactive_report_file_by_path(self, report_id: int, path: str):
+        try:
+            self.db.query(ReportFilesModel).filter(
+                ReportFilesModel.report_id == report_id,
+                ReportFilesModel.path == path,
+                ReportFilesModel.status == 1,
+            ).update({"status": 0})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Query to fetch active photo files for a report
+    def get_report_files(self, report_id: int):
+        try:
+            return self.db.query(
+                ReportFilesModel.id,
+                ReportFilesModel.path,
+                ReportFilesModel.description,
+            ).filter(
+                ReportFilesModel.report_id == report_id,
+                ReportFilesModel.status == 1,
+            ).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Query to soft-delete a single service_control_files row (ownership-checked)
+    def delete_sc_file(self, file_id: int, service_control_id: int):
+        try:
+            updated = self.db.query(ServiceControlFilesModel).filter(
+                ServiceControlFilesModel.id == file_id,
+                ServiceControlFilesModel.service_control_id == service_control_id,
+                ServiceControlFilesModel.status == 1,
+            ).update({"status": 0})
+            self.db.commit()
+            if not updated:
+                raise CustomException("Foto no encontrada o ya eliminada.")
+        except CustomException:
+            raise
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    # Query to fetch active photo files for a service_control record
+    def get_service_control_files(self, service_control_id: int):
+        try:
+            return self.db.query(
+                ServiceControlFilesModel.id,
+                ServiceControlFilesModel.path,
+                ServiceControlFilesModel.description,
+            ).filter(
+                ServiceControlFilesModel.service_control_id == service_control_id,
+                ServiceControlFilesModel.status == 1,
+            ).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
 
     # Free the linked service_control when its report is deleted
     def release_service_control_from_report(self, report_id: int):
