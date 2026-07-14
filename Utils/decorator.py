@@ -97,6 +97,8 @@ def http_decorator(func):
                                 contenido = "DESCARGANDO PDF"
                         elif request.url.path in ["/reports/generate_multiple_reports", "/reports/generate_multiple_reports_acesco"]:
                             contenido = "DESCARGANDO ZIP CON MÚLTIPLES PDFS"
+                        elif request.url.path == "/service_control/export_excel":
+                            contenido = "EXPORTANDO EXCEL CONTROL DE SERVICIO"
                     else:
                         # Función para limpiar datos base64 de imágenes antes de guardar en logs
                         def clean_base64_data(obj, max_length=500):

@@ -23,6 +23,9 @@ from Models.report_status_model import ReportStatusModel
 from Models.components_model import ComponentsModel
 from Models.service_control_model import ServiceControlModel
 from Models.service_control_files_model import ServiceControlFilesModel
+from Models.quotation_plant_model import QuotationPlantModel
+from Models.quotation_model import QuotationModel
+from Models.quotation_item_model import QuotationItemModel
 from Models.components_model import ComponentsModel
 from datetime import datetime
 from sqlalchemy import func, and_, or_
@@ -1683,8 +1686,159 @@ class Querys:
             if query:
                 query.status = 1
                 self.db.commit()
-                
+
         except Exception as ex:
             raise CustomException(str(ex))
-        
-        return True
+
+    # ── Quotation plants ──────────────────────────────────────────────────────
+
+    def get_quotation_plants(self):
+        try:
+            return self.db.query(QuotationPlantModel).filter(
+                QuotationPlantModel.status == 1
+            ).order_by(QuotationPlantModel.id.asc()).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_plant_for_update(self, plant_id: int):
+        try:
+            return self.db.query(QuotationPlantModel).filter(
+                QuotationPlantModel.id == plant_id,
+                QuotationPlantModel.status == 1,
+            ).with_for_update().first()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_quotation_detail(self, quotation_id: int):
+        try:
+            header = self.db.query(
+                QuotationModel.id,
+                QuotationModel.quotation_number,
+                QuotationModel.plant_id,
+                QuotationModel.city,
+                QuotationModel.activity_date,
+                QuotationModel.client_id,
+                QuotationModel.client_line_id,
+                QuotationModel.responsible_id,
+                QuotationModel.phone,
+                QuotationModel.nit,
+                QuotationModel.scope,
+                QuotationModel.delivery_time,
+                QuotationModel.activity_description,
+                QuotationModel.execution_place,
+                QuotationModel.subtotal,
+                QuotationModel.subtotal_with_iva,
+                QuotationModel.user_id,
+                ClientModel.name.label('client_name'),
+                ClientLinesModel.name.label('client_line_name'),
+                ClientUserModel.full_name.label('responsible_name'),
+                QuotationPlantModel.name.label('plant_name'),
+            ).join(
+                ClientModel, ClientModel.id == QuotationModel.client_id, isouter=True
+            ).join(
+                ClientLinesModel, ClientLinesModel.id == QuotationModel.client_line_id, isouter=True
+            ).join(
+                ClientUserModel, ClientUserModel.id == QuotationModel.responsible_id, isouter=True
+            ).join(
+                QuotationPlantModel, QuotationPlantModel.id == QuotationModel.plant_id, isouter=True
+            ).filter(
+                QuotationModel.id == quotation_id,
+                QuotationModel.status == 1,
+            ).first()
+
+            if not header:
+                return None
+
+            items = self.db.query(QuotationItemModel).filter(
+                QuotationItemModel.quotation_id == quotation_id,
+                QuotationItemModel.status == 1,
+            ).order_by(QuotationItemModel.item_order.asc(), QuotationItemModel.id.asc()).all()
+
+            return {"header": header, "items": items}
+
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def update_quotation(self, quotation_id: int, data: dict):
+        try:
+            self.db.query(QuotationModel).filter_by(id=quotation_id).update(data)
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def deactivate_quotation_items(self, quotation_id: int):
+        try:
+            self.db.query(QuotationItemModel).filter(
+                QuotationItemModel.quotation_id == quotation_id,
+                QuotationItemModel.status == 1,
+            ).update({"status": 0})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def change_status_quotation(self, quotation_id: int):
+        try:
+            self.db.query(QuotationModel).filter_by(id=quotation_id).update({"status": 0})
+            self.db.commit()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def list_quotations(self, data: dict, filters: dict):
+        try:
+            query = self.db.query(
+                QuotationModel.id,
+                QuotationModel.quotation_number,
+                QuotationModel.city,
+                QuotationModel.activity_date,
+                QuotationModel.subtotal,
+                QuotationModel.subtotal_with_iva,
+                ClientModel.name.label('client_name'),
+                ClientLinesModel.name.label('client_line_name'),
+                ClientUserModel.full_name.label('responsible_name'),
+                QuotationPlantModel.name.label('plant_name'),
+                UserModel.first_name,
+                UserModel.last_name,
+            ).join(
+                ClientModel, ClientModel.id == QuotationModel.client_id, isouter=True
+            ).join(
+                ClientLinesModel, ClientLinesModel.id == QuotationModel.client_line_id, isouter=True
+            ).join(
+                ClientUserModel, ClientUserModel.id == QuotationModel.responsible_id, isouter=True
+            ).join(
+                UserModel, UserModel.id == QuotationModel.user_id, isouter=True
+            ).join(
+                QuotationPlantModel, QuotationPlantModel.id == QuotationModel.plant_id, isouter=True
+            ).filter(QuotationModel.status == 1)
+
+            quotation_number = filters.get("quotation_number", "")
+            if quotation_number:
+                query = query.filter(QuotationModel.quotation_number.like(f'%{quotation_number}%'))
+
+            client_id = filters.get("client_id", "")
+            if client_id and str(client_id) != "":
+                query = query.filter(QuotationModel.client_id == int(client_id))
+
+            plant_id = filters.get("plant_id", "")
+            if plant_id and str(plant_id) != "":
+                query = query.filter(QuotationModel.plant_id == int(plant_id))
+
+            start_date = filters.get("start_date", "")
+            end_date = filters.get("end_date", "")
+            if start_date and end_date:
+                from datetime import datetime as dt
+                start = dt.strptime(start_date, "%Y-%m-%d").date()
+                end = dt.strptime(end_date, "%Y-%m-%d").date()
+                if start > end:
+                    raise CustomException("La fecha inicial no puede ser mayor a la fecha final.")
+                query = query.filter(QuotationModel.activity_date.between(start, end))
+
+            query = query.order_by(QuotationModel.id.desc())
+            reg_cont = query.count()
+            records = query.limit(data["limit"]).offset(data["limit"] * (int(data["position"]) - 1))
+
+            return {"quotations": records, "reg_cont": reg_cont}
+
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))

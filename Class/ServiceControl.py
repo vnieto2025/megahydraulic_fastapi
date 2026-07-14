@@ -9,6 +9,10 @@ from Models.client_lines_model import ClientLinesModel
 from Models.client_user_model import ClientUserModel
 from datetime import datetime
 from sqlalchemy import or_
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 import traceback
 import os
 import base64
@@ -435,6 +439,103 @@ class ServiceControl:
             "total_valor_formateado": total_valor_formateado,
             "registros": response
         })
+
+    def export_excel(self, data: dict):
+        filters = data.get("filters", {})
+        data_filter = []
+
+        if filters.get("start_date"):
+            data_filter.append(ServiceControlModel.activity_date >= datetime.strptime(filters["start_date"], "%Y-%m-%d").date())
+        if filters.get("end_date"):
+            data_filter.append(ServiceControlModel.activity_date <= datetime.strptime(filters["end_date"], "%Y-%m-%d").date())
+        if filters.get("service_status"):
+            data_filter.append(ServiceControlModel.service_status.in_(filters["service_status"]))
+        solped_values = filters.get("solped") or []
+        if solped_values:
+            has_empty = "__EMPTY__" in solped_values
+            real = [v for v in solped_values if v != "__EMPTY__"]
+            if has_empty and real:
+                data_filter.append(or_(ServiceControlModel.solped.in_(real), ServiceControlModel.solped == None, ServiceControlModel.solped == ''))
+            elif has_empty:
+                data_filter.append(or_(ServiceControlModel.solped == None, ServiceControlModel.solped == ''))
+            elif real:
+                data_filter.append(ServiceControlModel.solped.in_(real))
+        if filters.get("client_id"):
+            data_filter.append(ServiceControlModel.client_id == int(filters["client_id"]))
+        if filters.get("client_line_id"):
+            data_filter.append(ServiceControlModel.client_line_id == int(filters["client_line_id"]))
+        if filters.get("responsible_id"):
+            data_filter.append(ServiceControlModel.responsible_id == int(filters["responsible_id"]))
+        if filters.get("report_status"):
+            data_filter.append(ServiceControlModel.report_status.in_(filters["report_status"]))
+        if filters.get("consecutive"):
+            data_filter.append(ServiceControlModel.consecutive == int(filters["consecutive"]))
+        if filters.get("hes"):
+            data_filter.append(ServiceControlModel.hes.in_(filters["hes"]))
+        oc_values = filters.get("oc") or []
+        if oc_values:
+            has_empty = "__EMPTY__" in oc_values
+            real = [v for v in oc_values if v != "__EMPTY__"]
+            if has_empty and real:
+                data_filter.append(or_(ServiceControlModel.oc.in_(real), ServiceControlModel.oc == None, ServiceControlModel.oc == ''))
+            elif has_empty:
+                data_filter.append(or_(ServiceControlModel.oc == None, ServiceControlModel.oc == ''))
+            elif real:
+                data_filter.append(ServiceControlModel.oc.in_(real))
+        if filters.get("factura"):
+            try:
+                data_filter.append(ServiceControlModel.invoice == int(filters["factura"]))
+            except (ValueError, TypeError):
+                pass
+        if filters.get("invoice_date_start"):
+            data_filter.append(ServiceControlModel.invoice_date >= datetime.strptime(filters["invoice_date_start"], "%Y-%m-%d").date())
+        if filters.get("invoice_date_end"):
+            data_filter.append(ServiceControlModel.invoice_date <= datetime.strptime(filters["invoice_date_end"], "%Y-%m-%d").date())
+
+        result = self.querys.list_service_controls(
+            {"limit": 999999, "position": 1, "order_by": data.get("order_by"), "order_dir": data.get("order_dir")},
+            data_filter=data_filter,
+        )
+        records = list(result["records"])
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Control de Servicio"
+
+        headers = ["Descripción", "Solped", "OC", "Posición", "Consecutivo"]
+        ws.append(headers)
+        header_fill = PatternFill(start_color="2A475F", end_color="2A475F", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF")
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center")
+
+        for r in records:
+            ws.append([
+                r.description or "",
+                r.solped or "",
+                r.oc or "",
+                str(r.position) if r.position is not None else "",
+                str(r.consecutive) if r.consecutive is not None else "",
+            ])
+
+        ws.column_dimensions["A"].width = 45
+        ws.column_dimensions["B"].width = 15
+        ws.column_dimensions["C"].width = 15
+        ws.column_dimensions["D"].width = 12
+        ws.column_dimensions["E"].width = 15
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        filename = f"control_servicio_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
 
     def get_oc_list(self, data: dict):
         filters = data.get("filters", {})

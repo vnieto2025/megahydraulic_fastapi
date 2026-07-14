@@ -105,3 +105,11 @@ def delete_sc_file(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = ServiceControl(db).delete_sc_file(data)
     return response
+
+
+@service_control_router.post('/service_control/export_excel', tags=["ServiceControl"], dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def export_excel_service_control(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = ServiceControl(db).export_excel(data)
+    return response
