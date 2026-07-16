@@ -26,9 +26,11 @@ from Models.service_control_files_model import ServiceControlFilesModel
 from Models.quotation_plant_model import QuotationPlantModel
 from Models.quotation_model import QuotationModel
 from Models.quotation_item_model import QuotationItemModel
+from Models.labor_type_model import LaborTypeModel
+from Models.quotation_labor_model import QuotationLaborModel
 from Models.components_model import ComponentsModel
 from datetime import datetime
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, cast, Integer
 
 class Querys:
 
@@ -898,7 +900,8 @@ class Querys:
             order_by = data.get("order_by")
             order_dir = data.get("order_dir")
             if order_by == "position" and order_dir in ("asc", "desc"):
-                position_order = ServiceControlModel.position.asc() if order_dir == "asc" else ServiceControlModel.position.desc()
+                position_cast = cast(ServiceControlModel.position, Integer)
+                position_order = position_cast.asc() if order_dir == "asc" else position_cast.desc()
                 query = query.order_by(position_order, ServiceControlModel.id.desc())
             else:
                 query = query.order_by(ServiceControlModel.id.desc())
@@ -1706,6 +1709,45 @@ class Querys:
                 QuotationPlantModel.id == plant_id,
                 QuotationPlantModel.status == 1,
             ).with_for_update().first()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_labor_types(self):
+        try:
+            return self.db.query(LaborTypeModel).filter(
+                LaborTypeModel.status == 1
+            ).order_by(LaborTypeModel.id.asc()).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_quotation_labor(self, quotation_id: int):
+        try:
+            return self.db.query(
+                QuotationLaborModel.id,
+                QuotationLaborModel.labor_type_id,
+                QuotationLaborModel.quantity,
+                QuotationLaborModel.unit_price,
+                QuotationLaborModel.total_price,
+                QuotationLaborModel.description.label('row_description'),
+                LaborTypeModel.code,
+                LaborTypeModel.description,
+                LaborTypeModel.unit,
+            ).join(
+                LaborTypeModel, LaborTypeModel.id == QuotationLaborModel.labor_type_id, isouter=True
+            ).filter(
+                QuotationLaborModel.quotation_id == quotation_id,
+                QuotationLaborModel.status == 1,
+            ).order_by(QuotationLaborModel.id.asc()).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def deactivate_quotation_labor(self, quotation_id: int):
+        try:
+            self.db.query(QuotationLaborModel).filter(
+                QuotationLaborModel.quotation_id == quotation_id,
+                QuotationLaborModel.status == 1,
+            ).update({"status": 0})
+            self.db.commit()
         except Exception as ex:
             raise CustomException(str(ex))
 

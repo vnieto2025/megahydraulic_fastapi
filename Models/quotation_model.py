@@ -22,8 +22,8 @@ class QuotationModel(BASE):
     nit = Column(String(30), nullable=True)
     scope = Column(Text, nullable=True)                     # alcance de la actividad
     delivery_time = Column(String(200), nullable=True)      # tiempo de entrega
-    activity_description = Column(Text, nullable=True)      # descripción de la actividad
-    execution_place = Column(String(200), nullable=True)    # donde se ejecuta
+    activity_description = Column(Text, nullable=True)
+    execution_place = Column(String(200), nullable=True)
     subtotal = Column(DECIMAL(15, 2), nullable=False, default=0)
     subtotal_with_iva = Column(DECIMAL(15, 2), nullable=False, default=0)
     user_id = Column(BigInteger, nullable=False)

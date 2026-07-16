@@ -4,6 +4,7 @@ from Utils.tools import Tools, CustomException
 from Utils.querys import Querys
 from Models.quotation_model import QuotationModel
 from Models.quotation_item_model import QuotationItemModel
+from Models.quotation_labor_model import QuotationLaborModel
 
 
 class Quotation:
@@ -11,6 +12,25 @@ class Quotation:
     def __init__(self, db):
         self.tools = Tools()
         self.querys = Querys(db)
+
+    def get_labor_types(self):
+        try:
+            labor_types = self.querys.get_labor_types()
+            result = [
+                {
+                    "id": l.id,
+                    "code": l.code,
+                    "description": l.description,
+                    "unit": l.unit,
+                    "value": float(l.value),
+                }
+                for l in labor_types
+            ]
+            return self.tools.output(200, "Tipos de mano de obra obtenidos correctamente.", result)
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))
 
     def get_plants(self):
         try:
@@ -85,6 +105,61 @@ class Quotation:
                 if item_type == "item":
                     item_counter += 1
 
+            for labor in data.get("labor_items", []):
+                self.querys.insert_data(QuotationLaborModel, {
+                    "quotation_id": quotation_id,
+                    "labor_type_id": int(labor["labor_type_id"]),
+                    "quantity": float(labor.get("quantity", 0)),
+                    "unit_price": float(labor.get("unit_price", 0)),
+                    "total_price": float(labor.get("total_price", 0)),
+                    "description": labor.get("description") or None,
+                })
+
+            for mat in data.get("material_items", []):
+                qty = float(mat.get("quantity", 0))
+                price = float(mat.get("unit_price", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "sap_code": mat.get("sap_code") or None,
+                    "description": mat.get("description") or None,
+                    "unit": mat.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "total_price": qty * price,
+                    "row_description": mat.get("row_description") or None,
+                    "item_type": "material",
+                })
+
+            for eq in data.get("equipment_items", []):
+                qty = float(eq.get("quantity", 0))
+                price = float(eq.get("unit_price", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "description": eq.get("description") or None,
+                    "unit": eq.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "total_price": qty * price,
+                    "row_description": eq.get("row_description") or None,
+                    "item_type": "equipment",
+                })
+
+            for sur in data.get("hourly_surcharge_items", []):
+                qty = float(sur.get("quantity", 0))
+                price = float(sur.get("unit_price", 0))
+                pct = float(sur.get("surcharge_percent", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "description": sur.get("description") or None,
+                    "unit": sur.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "surcharge_percent": pct,
+                    "total_price": qty * price * (pct / 100) if pct else 0,
+                    "row_description": sur.get("row_description") or None,
+                    "item_type": "hourly_surcharge",
+                })
+
             return self.tools.output(200, "Cotización creada correctamente.", {
                 "quotation_id": quotation_id,
                 "quotation_number": quotation_number,
@@ -138,7 +213,59 @@ class Quotation:
                         "total_price": float(i.total_price),
                         "item_type": i.item_type,
                     }
-                    for i in items
+                    for i in items if i.item_type in ("item", "logistics", "surcharge")
+                ],
+                "material_items": [
+                    {
+                        "id": i.id,
+                        "sap_code": i.sap_code,
+                        "description": i.description,
+                        "unit": i.unit,
+                        "quantity": float(i.quantity),
+                        "unit_price": float(i.unit_price),
+                        "total_price": float(i.total_price),
+                        "row_description": i.row_description,
+                    }
+                    for i in items if i.item_type == "material"
+                ],
+                "equipment_items": [
+                    {
+                        "id": i.id,
+                        "description": i.description,
+                        "unit": i.unit,
+                        "quantity": float(i.quantity),
+                        "unit_price": float(i.unit_price),
+                        "total_price": float(i.total_price),
+                        "row_description": i.row_description,
+                    }
+                    for i in items if i.item_type == "equipment"
+                ],
+                "hourly_surcharge_items": [
+                    {
+                        "id": i.id,
+                        "description": i.description,
+                        "unit": i.unit,
+                        "quantity": float(i.quantity),
+                        "unit_price": float(i.unit_price),
+                        "surcharge_percent": float(i.surcharge_percent or 0),
+                        "total_price": float(i.total_price),
+                        "row_description": i.row_description,
+                    }
+                    for i in items if i.item_type == "hourly_surcharge"
+                ],
+                "labor_items": [
+                    {
+                        "id": l.id,
+                        "labor_type_id": l.labor_type_id,
+                        "code": l.code,
+                        "description": l.description,
+                        "row_description": l.row_description,
+                        "unit": l.unit,
+                        "quantity": float(l.quantity),
+                        "unit_price": float(l.unit_price),
+                        "total_price": float(l.total_price),
+                    }
+                    for l in self.querys.get_quotation_labor(quotation_id)
                 ],
             }
 
@@ -190,6 +317,62 @@ class Quotation:
                 self.querys.insert_data(QuotationItemModel, item_data)
                 if item_type == "item":
                     item_counter += 1
+
+            self.querys.deactivate_quotation_labor(quotation_id)
+            for labor in data.get("labor_items", []):
+                self.querys.insert_data(QuotationLaborModel, {
+                    "quotation_id": quotation_id,
+                    "labor_type_id": int(labor["labor_type_id"]),
+                    "quantity": float(labor.get("quantity", 0)),
+                    "unit_price": float(labor.get("unit_price", 0)),
+                    "total_price": float(labor.get("total_price", 0)),
+                    "description": labor.get("description") or None,
+                })
+
+            for mat in data.get("material_items", []):
+                qty = float(mat.get("quantity", 0))
+                price = float(mat.get("unit_price", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "sap_code": mat.get("sap_code") or None,
+                    "description": mat.get("description") or None,
+                    "unit": mat.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "total_price": qty * price,
+                    "row_description": mat.get("row_description") or None,
+                    "item_type": "material",
+                })
+
+            for eq in data.get("equipment_items", []):
+                qty = float(eq.get("quantity", 0))
+                price = float(eq.get("unit_price", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "description": eq.get("description") or None,
+                    "unit": eq.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "total_price": qty * price,
+                    "row_description": eq.get("row_description") or None,
+                    "item_type": "equipment",
+                })
+
+            for sur in data.get("hourly_surcharge_items", []):
+                qty = float(sur.get("quantity", 0))
+                price = float(sur.get("unit_price", 0))
+                pct = float(sur.get("surcharge_percent", 0))
+                self.querys.insert_data(QuotationItemModel, {
+                    "quotation_id": quotation_id,
+                    "description": sur.get("description") or None,
+                    "unit": sur.get("unit") or None,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "surcharge_percent": pct,
+                    "total_price": qty * price * (pct / 100) if pct else 0,
+                    "row_description": sur.get("row_description") or None,
+                    "item_type": "hourly_surcharge",
+                })
 
             return self.tools.output(200, "Cotización actualizada correctamente.", {"quotation_id": quotation_id})
 

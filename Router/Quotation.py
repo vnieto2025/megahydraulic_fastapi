@@ -17,6 +17,13 @@ def get_quotation_plants(request: Request, db: Session = Depends(get_db)):
     return response
 
 
+@quotation_router.post('/quotation/get_labor_types', tags=["Quotation"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_labor_types(request: Request, db: Session = Depends(get_db)):
+    response = Quotation(db).get_labor_types()
+    return response
+
+
 @quotation_router.post('/quotation/create', tags=["Quotation"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
 @http_decorator
 def create_quotation(request: Request, db: Session = Depends(get_db)):

@@ -12,6 +12,8 @@ from Router.Quotation import quotation_router
 from Models.quotation_plant_model import QuotationPlantModel
 from Models.quotation_model import QuotationModel
 from Models.quotation_item_model import QuotationItemModel
+from Models.labor_type_model import LaborTypeModel
+from Models.quotation_labor_model import QuotationLaborModel
 from pathlib import Path
 
 
