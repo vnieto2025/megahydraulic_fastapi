@@ -28,6 +28,7 @@ from Models.quotation_model import QuotationModel
 from Models.quotation_item_model import QuotationItemModel
 from Models.labor_type_model import LaborTypeModel
 from Models.quotation_labor_model import QuotationLaborModel
+from Models.quotation_photos_model import QuotationPhotosModel
 from Models.components_model import ComponentsModel
 from datetime import datetime
 from sqlalchemy import func, and_, or_, cast, Integer
@@ -1762,8 +1763,11 @@ class Querys:
                 QuotationModel.client_id,
                 QuotationModel.client_line_id,
                 QuotationModel.responsible_id,
+                QuotationModel.directed_to,
                 QuotationModel.phone,
                 QuotationModel.nit,
+                QuotationModel.component_id,
+                QuotationModel.executed,
                 QuotationModel.scope,
                 QuotationModel.delivery_time,
                 QuotationModel.activity_description,
@@ -1775,6 +1779,7 @@ class Querys:
                 ClientLinesModel.name.label('client_line_name'),
                 ClientUserModel.full_name.label('responsible_name'),
                 QuotationPlantModel.name.label('plant_name'),
+                ComponentsModel.name.label('component_name'),
             ).join(
                 ClientModel, ClientModel.id == QuotationModel.client_id, isouter=True
             ).join(
@@ -1783,6 +1788,8 @@ class Querys:
                 ClientUserModel, ClientUserModel.id == QuotationModel.responsible_id, isouter=True
             ).join(
                 QuotationPlantModel, QuotationPlantModel.id == QuotationModel.plant_id, isouter=True
+            ).join(
+                ComponentsModel, ComponentsModel.id == QuotationModel.component_id, isouter=True
             ).filter(
                 QuotationModel.id == quotation_id,
                 QuotationModel.status == 1,
@@ -1882,5 +1889,25 @@ class Querys:
 
         except CustomException as ex:
             raise ex
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def get_quotation_photos(self, quotation_id: int):
+        try:
+            return self.db.query(
+                QuotationPhotosModel.id,
+                QuotationPhotosModel.path,
+                QuotationPhotosModel.description,
+            ).filter(
+                QuotationPhotosModel.quotation_id == quotation_id,
+                QuotationPhotosModel.status == 1,
+            ).order_by(QuotationPhotosModel.id.asc()).all()
+        except Exception as ex:
+            raise CustomException(str(ex))
+
+    def delete_quotation_photo(self, photo_id: int):
+        try:
+            self.db.query(QuotationPhotosModel).filter_by(id=photo_id).update({"status": 0})
+            self.db.commit()
         except Exception as ex:
             raise CustomException(str(ex))

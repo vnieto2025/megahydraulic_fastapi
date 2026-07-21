@@ -62,3 +62,17 @@ def change_status_quotation(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     response = Quotation(db).change_status_quotation(data)
     return response
+
+
+@quotation_router.post('/quotation/delete_photo', tags=["Quotation"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def delete_quotation_photo(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = Quotation(db).delete_quotation_photo(data)
+    return response
+
+
+@quotation_router.post('/quotation/generate_pdf', tags=["Quotation"], dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+def generate_quotation_pdf(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    return Quotation(db).generate_pdf(data)

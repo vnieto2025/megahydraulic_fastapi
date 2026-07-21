@@ -9,11 +9,6 @@ from Router.Report import report_router
 from Router.Client import client_router
 from Router.ServiceControl import service_control_router
 from Router.Quotation import quotation_router
-from Models.quotation_plant_model import QuotationPlantModel
-from Models.quotation_model import QuotationModel
-from Models.quotation_item_model import QuotationItemModel
-from Models.labor_type_model import LaborTypeModel
-from Models.quotation_labor_model import QuotationLaborModel
 from pathlib import Path
 
 
@@ -41,4 +36,3 @@ app.include_router(service_control_router)
 app.include_router(quotation_router)
 
 BASE.metadata.create_all(bind=engine)
-

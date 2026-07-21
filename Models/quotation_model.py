@@ -18,8 +18,11 @@ class QuotationModel(BASE):
     client_id = Column(BigInteger, nullable=False)
     client_line_id = Column(BigInteger, nullable=True)
     responsible_id = Column(BigInteger, nullable=True)
+    directed_to = Column(Text, nullable=True)
     phone = Column(String(30), nullable=True)
     nit = Column(String(30), nullable=True)
+    component_id = Column(BigInteger, nullable=True)            # FK → components.id
+    executed = Column(Integer, nullable=True)                   # 1=Sí, 0=No
     scope = Column(Text, nullable=True)                     # alcance de la actividad
     delivery_time = Column(String(200), nullable=True)      # tiempo de entrega
     activity_description = Column(Text, nullable=True)
@@ -39,8 +42,11 @@ class QuotationModel(BASE):
         self.client_id = data['client_id']
         self.client_line_id = data.get('client_line_id')
         self.responsible_id = data.get('responsible_id')
+        self.directed_to = data.get('directed_to')
         self.phone = data.get('phone')
         self.nit = data.get('nit')
+        self.component_id = data.get('component_id')
+        self.executed = data.get('executed')
         self.scope = data.get('scope')
         self.delivery_time = data.get('delivery_time')
         self.activity_description = data.get('activity_description')

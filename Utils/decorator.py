@@ -38,6 +38,8 @@ def http_decorator(func):
                     # Corre la función
                     resultado = func(*args, **kwargs)
                 except CustomException as ce:
+                    print(f"[CustomException] {ce.message}")
+                    print(traceback.format_exc())
                     codigo = ce.codigo
                     message = ce.message
                     data = ce.data
@@ -129,6 +131,8 @@ def http_decorator(func):
                             "/reports/edit_report_acesco",
                             "/service_control/create",
                             "/service_control/update",
+                            "/quotation/create",
+                            "/quotation/edit",
                         ]
                         if request.url.path in PATHS_WITH_IMAGES:
                             body = clean_base64_data(body)

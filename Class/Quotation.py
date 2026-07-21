@@ -1,10 +1,23 @@
+import base64
+import io
 import math
+import os
+import re
+import traceback
+import uuid
 from datetime import datetime
+from PIL import Image
+from fastapi.responses import StreamingResponse
 from Utils.tools import Tools, CustomException
 from Utils.querys import Querys
 from Models.quotation_model import QuotationModel
 from Models.quotation_item_model import QuotationItemModel
 from Models.quotation_labor_model import QuotationLaborModel
+from Models.quotation_photos_model import QuotationPhotosModel
+from Models.service_control_model import ServiceControlModel
+from Class.QuotationPDF import QuotationPDF
+
+UPLOAD_FOLDER = "Uploads/"
 
 
 class Quotation:
@@ -12,6 +25,39 @@ class Quotation:
     def __init__(self, db):
         self.tools = Tools()
         self.querys = Querys(db)
+
+    def process_images(self, quotation_id: int, fotos: list):
+        for index, foto in enumerate(fotos):
+            img_data = foto.get("img", "")
+            if not img_data.startswith("data:image/"):
+                continue
+            try:
+                match = re.search(r"data:image/(?P<ext>\w+);base64,", img_data)
+                file_extension = match.group("ext") if match else "jpeg"
+                base64_data = re.sub(r"^data:image/\w+;base64,", "", img_data)
+                file_data = base64.b64decode(base64_data)
+                image = Image.open(io.BytesIO(file_data))
+                compressed_io = io.BytesIO()
+                image = image.convert("RGB")
+                image.save(compressed_io, format="JPEG", optimize=True, quality=75)
+                compressed_io.seek(0)
+                compressed_data = compressed_io.read()
+            except Exception as e:
+                raise CustomException(f"Error al procesar la imagen {index + 1}: {str(e)}")
+
+            file_name = f"{uuid.uuid4()}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, file_name)
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(compressed_data)
+            except Exception as e:
+                raise CustomException(f"Error al guardar la imagen {index + 1}: {str(e)}")
+
+            self.querys.insert_data(QuotationPhotosModel, {
+                "quotation_id": quotation_id,
+                "path": file_path,
+                "description": foto.get("description"),
+            })
 
     def get_labor_types(self):
         try:
@@ -30,6 +76,7 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def get_plants(self):
@@ -49,10 +96,16 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def create_quotation(self, data: dict):
         try:
+            if not data.get("client_line_id"):
+                raise CustomException("Debe seleccionar una línea/área.")
+            if not data.get("responsible_id"):
+                raise CustomException("Debe seleccionar un interventor.")
+
             plant = self.querys.get_plant_for_update(int(data["plant_id"]))
             if not plant:
                 raise CustomException("Planta no encontrada.")
@@ -70,8 +123,11 @@ class Quotation:
                 "client_id": int(data["client_id"]),
                 "client_line_id": int(data["client_line_id"]) if data.get("client_line_id") else None,
                 "responsible_id": int(data["responsible_id"]) if data.get("responsible_id") else None,
+                "directed_to": data.get("directed_to", "").strip() if data.get("directed_to") else None,
                 "phone": data.get("phone", "").strip() if data.get("phone") else None,
                 "nit": data.get("nit", "").strip() if data.get("nit") else None,
+                "component_id": int(data["component_id"]) if data.get("component_id") else None,
+                "executed": int(data["executed"]) if data.get("executed") is not None else None,
                 "scope": data.get("scope", "").strip() if data.get("scope") else None,
                 "delivery_time": data.get("delivery_time", "").strip() if data.get("delivery_time") else None,
                 "activity_description": data.get("activity_description", "").strip() if data.get("activity_description") else None,
@@ -160,6 +216,39 @@ class Quotation:
                     "item_type": "hourly_surcharge",
                 })
 
+            fotos = data.get("fotos", [])
+            if fotos:
+                self.process_images(quotation_id, fotos)
+
+            # Crear control de servicio asociado automáticamente
+            sc_data = {
+                "activity_date": self.tools.format_date(data["activity_date"]),
+                "client_id": int(data["client_id"]),
+                "client_line_id": int(data["client_line_id"]),
+                "responsible_id": int(data["responsible_id"]),
+                "description": data.get("activity_description", "").strip() if data.get("activity_description") else None,
+                "information": data.get("scope", "").strip() if data.get("scope") else None,
+                "service_order": None,
+                "quotation": quotation_number,
+                "component": int(data["component_id"]) if data.get("component_id") else None,
+                "component_quantity": 0,
+                "value": float(data.get("subtotal", 0)),
+                "solped": None,
+                "oc": None,
+                "position": None,
+                "service_status": 5 if int(data.get("executed") or 0) == 1 else 1,
+                "report_status": 0,
+                "consecutive": None,
+                "invoice": None,
+                "invoice_date": None,
+                "note": None,
+                "hes": None,
+                "gestor": None,
+                "report_id": None,
+                "user_id": int(data["user_id"]),
+            }
+            self.querys.insert_data(ServiceControlModel, sc_data)
+
             return self.tools.output(200, "Cotización creada correctamente.", {
                 "quotation_id": quotation_id,
                 "quotation_number": quotation_number,
@@ -168,6 +257,7 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def get_quotation(self, data: dict):
@@ -193,8 +283,12 @@ class Quotation:
                 "client_line_name": h.client_line_name,
                 "responsible_id": h.responsible_id,
                 "responsible_name": h.responsible_name,
+                "directed_to": h.directed_to,
                 "phone": h.phone,
                 "nit": h.nit,
+                "component_id": h.component_id,
+                "component_name": h.component_name,
+                "executed": h.executed,
                 "scope": h.scope,
                 "delivery_time": h.delivery_time,
                 "activity_description": h.activity_description,
@@ -213,7 +307,7 @@ class Quotation:
                         "total_price": float(i.total_price),
                         "item_type": i.item_type,
                     }
-                    for i in items if i.item_type in ("item", "logistics", "surcharge")
+                    for i in items if i.item_type in ("item", "logistics", "surcharge", "auto_labor", "auto_materials")
                 ],
                 "material_items": [
                     {
@@ -267,6 +361,14 @@ class Quotation:
                     }
                     for l in self.querys.get_quotation_labor(quotation_id)
                 ],
+                "photos": [
+                    {
+                        "id": p.id,
+                        "path": p.path,
+                        "description": p.description,
+                    }
+                    for p in self.querys.get_quotation_photos(quotation_id)
+                ],
             }
 
             return self.tools.output(200, "Cotización obtenida correctamente.", response)
@@ -274,6 +376,7 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def edit_quotation(self, data: dict):
@@ -286,8 +389,11 @@ class Quotation:
                 "client_id": int(data["client_id"]),
                 "client_line_id": int(data["client_line_id"]) if data.get("client_line_id") else None,
                 "responsible_id": int(data["responsible_id"]) if data.get("responsible_id") else None,
+                "directed_to": data.get("directed_to") or None,
                 "phone": data.get("phone") or None,
                 "nit": data.get("nit") or None,
+                "component_id": int(data["component_id"]) if data.get("component_id") else None,
+                "executed": int(data["executed"]) if data.get("executed") is not None else None,
                 "scope": data.get("scope") or None,
                 "delivery_time": data.get("delivery_time") or None,
                 "activity_description": data.get("activity_description") or None,
@@ -374,11 +480,16 @@ class Quotation:
                     "item_type": "hourly_surcharge",
                 })
 
+            fotos_nuevas = data.get("fotos_nuevas", [])
+            if fotos_nuevas:
+                self.process_images(quotation_id, fotos_nuevas)
+
             return self.tools.output(200, "Cotización actualizada correctamente.", {"quotation_id": quotation_id})
 
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def change_status_quotation(self, data: dict):
@@ -389,6 +500,43 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
+            raise CustomException(str(ex))
+
+    def delete_quotation_photo(self, data: dict):
+        try:
+            photo_id = int(data["photo_id"])
+            self.querys.delete_quotation_photo(photo_id)
+            return self.tools.output(200, "Foto eliminada correctamente.")
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            traceback.print_exc()
+            raise CustomException(str(ex))
+
+    def generate_pdf(self, data: dict):
+        try:
+            quotation_id = int(data["quotation_id"])
+            result = self.get_quotation({"quotation_id": quotation_id})
+            q_data = result.body  # JSONResponse bytes
+            import json
+            q_data = json.loads(q_data)["data"]
+
+            pdf_bytes = QuotationPDF(q_data).generate()
+            number = q_data.get("quotation_number", f"COT-{quotation_id}")
+            filename = f"Cotizacion_{number}.pdf"
+            from io import BytesIO
+            return StreamingResponse(
+                BytesIO(pdf_bytes),
+                headers={
+                    "Content-Disposition": f"attachment; filename={filename}",
+                    "Content-Type": "application/pdf",
+                },
+            )
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
 
     def list_quotations(self, data: dict):
@@ -439,4 +587,5 @@ class Quotation:
         except CustomException as ex:
             raise ex
         except Exception as ex:
+            traceback.print_exc()
             raise CustomException(str(ex))
