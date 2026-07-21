@@ -11,8 +11,6 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (Image, PageBreak, Paragraph, SimpleDocTemplate,
                                 Spacer, Table, TableStyle)
 
-_HERE = os.path.dirname(os.path.abspath(__file__))          # .../Class/
-LOGO_PATH = os.path.join(os.path.dirname(_HERE), "assets", "logo.jpg")  # .../assets/logo.jpg
 PAGE_W, PAGE_H = letter
 LM = RM = 1.5 * cm
 TM = BM = 1.5 * cm
@@ -86,8 +84,9 @@ class QuotationPDF:
     # ─────────────────────────────────────────────────────────────────────────
     def _header(self, story):
         logo_w, logo_h = 3.8 * cm, 1.6 * cm
-        if os.path.exists(LOGO_PATH):
-            left_cell = Image(LOGO_PATH, width=logo_w, height=logo_h)
+        logo_path = os.path.join('assets', 'logo.jpg')
+        if os.path.exists(logo_path):
+            left_cell = Image(logo_path, width=logo_w, height=logo_h)
         else:
             left_cell = _p("MEGA HYDRAULIC S.A.S", self.scb)
 

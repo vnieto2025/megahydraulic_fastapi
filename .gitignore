@@ -132,7 +132,8 @@ ENV/
 env.bak/
 venv.bak/
 Uploads/
-assets/
+assets/*
+!assets/logo.jpg
 
 # Spyder project settings
 .spyderproject
