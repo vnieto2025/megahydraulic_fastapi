@@ -11,7 +11,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (Image, PageBreak, Paragraph, SimpleDocTemplate,
                                 Spacer, Table, TableStyle)
 
-LOGO_PATH = "assets/logo.jpg"
+_HERE = os.path.dirname(os.path.abspath(__file__))          # .../Class/
+LOGO_PATH = os.path.join(os.path.dirname(_HERE), "assets", "logo.jpg")  # .../assets/logo.jpg
 PAGE_W, PAGE_H = letter
 LM = RM = 1.5 * cm
 TM = BM = 1.5 * cm
@@ -63,9 +64,12 @@ class QuotationPDF:
     # ─────────────────────────────────────────────────────────────────────────
     def generate(self) -> bytes:
         buf = BytesIO()
+        nro = self.d.get("quotation_number", "Cotizacion")
         doc = SimpleDocTemplate(buf, pagesize=letter,
                                 leftMargin=LM, rightMargin=RM,
-                                topMargin=TM,  bottomMargin=BM)
+                                topMargin=TM,  bottomMargin=BM,
+                                title=f"Cotización {nro}",
+                                author="MEGA HYDRAULIC S.A.S")
         story = []
         self._header(story)
         story.append(Spacer(1, 3))
