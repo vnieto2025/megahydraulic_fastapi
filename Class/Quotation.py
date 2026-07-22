@@ -524,7 +524,10 @@ class Quotation:
 
             pdf_bytes = QuotationPDF(q_data).generate()
             number = q_data.get("quotation_number", f"COT-{quotation_id}")
-            filename = f"Cotizacion_{number}.pdf"
+            raw_desc = (q_data.get("activity_description") or q_data.get("scope") or "").strip()
+            short_desc = re.sub(r'[^a-zA-Z0-9\s]', '', raw_desc).strip()
+            short_desc = re.sub(r'\s+', '_', short_desc)
+            filename = f"Cotizacion-{number}-{short_desc}.pdf" if short_desc else f"Cotizacion-{number}.pdf"
             from io import BytesIO
             return StreamingResponse(
                 BytesIO(pdf_bytes),
