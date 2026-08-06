@@ -10,7 +10,7 @@ from Router.Client import client_router
 from Router.ServiceControl import service_control_router
 from Router.Quotation import quotation_router
 from pathlib import Path
-
+import uvicorn
 
 route = Path.cwd()
 app = FastAPI()
@@ -37,3 +37,12 @@ app.include_router(service_control_router)
 app.include_router(quotation_router)
 
 BASE.metadata.create_all(bind=engine)
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
+
