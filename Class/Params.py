@@ -70,3 +70,8 @@ class Param:
 
         components = self.querys.get_components()
         return self.tools.output(200, "Ok.", components)
+
+    def get_equipment_tools(self):
+
+        equipment_tools = self.querys.get_equipment_tools()
+        return self.tools.output(200, "Ok.", equipment_tools)

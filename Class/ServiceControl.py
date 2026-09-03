@@ -398,6 +398,7 @@ class ServiceControl:
                 "responsible": key.responsible_name,
                 "service_order": key.service_order,
                 "quotation": key.quotation,
+                "quotation_id": key.quotation_id,
                 "component": key.component,
                 "component_name": key.component_name if key.component is not None else '-',
                 "component_quantity": key.component_quantity,

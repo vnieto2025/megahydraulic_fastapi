@@ -30,6 +30,7 @@ from Models.labor_type_model import LaborTypeModel
 from Models.quotation_labor_model import QuotationLaborModel
 from Models.quotation_photos_model import QuotationPhotosModel
 from Models.components_model import ComponentsModel
+from Models.equipment_tools_model import EquipmentToolsModel
 from datetime import datetime
 from sqlalchemy import func, and_, or_, cast, Integer
 
@@ -859,6 +860,7 @@ class Querys:
                 ServiceControlModel.invoice_date,
                 ServiceControlModel.report_id,
                 ReportModel.type_report,
+                QuotationModel.id.label('quotation_id'),
             ).join(
                 ClientModel,
                 ClientModel.id == ServiceControlModel.client_id,
@@ -890,6 +892,10 @@ class Querys:
             ).join(
                 ReportModel,
                 ReportModel.id == ServiceControlModel.report_id,
+                isouter=True
+            ).join(
+                QuotationModel,
+                QuotationModel.quotation_number == ServiceControlModel.quotation,
                 isouter=True
             ).filter(
                 ServiceControlModel.status == 1
@@ -1839,6 +1845,7 @@ class Querys:
                 QuotationModel.quotation_number,
                 QuotationModel.city,
                 QuotationModel.activity_date,
+                QuotationModel.activity_description,
                 QuotationModel.subtotal,
                 QuotationModel.subtotal_with_iva,
                 ClientModel.name.label('client_name'),
@@ -1911,3 +1918,19 @@ class Querys:
             self.db.commit()
         except Exception as ex:
             raise CustomException(str(ex))
+
+    def get_equipment_tools(self):
+        response = []
+        query = self.db.query(EquipmentToolsModel).filter(
+            EquipmentToolsModel.status == 1
+        ).order_by(EquipmentToolsModel.name.asc()).all()
+
+        for key in query:
+            response.append({
+                "id": key.id,
+                "name": key.name,
+                "unit": key.unit,
+                "unit_price": float(key.unit_price),
+            })
+
+        return response

@@ -76,3 +76,11 @@ def delete_quotation_photo(request: Request, db: Session = Depends(get_db)):
 def generate_quotation_pdf(request: Request, db: Session = Depends(get_db)):
     data = getattr(request.state, "json_data", {})
     return Quotation(db).generate_pdf(data)
+
+
+@quotation_router.post('/quotation/duplicate', tags=["Quotation"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def duplicate_quotation(request: Request, db: Session = Depends(get_db)):
+    data = getattr(request.state, "json_data", {})
+    response = Quotation(db).duplicate_quotation(data)
+    return response

@@ -542,6 +542,126 @@ class Quotation:
             traceback.print_exc()
             raise CustomException(str(ex))
 
+    def duplicate_quotation(self, data: dict):
+        try:
+            source_id = int(data["quotation_id"])
+
+            # --- Obtener cotización original ---
+            detail = self.querys.get_quotation_detail(source_id)
+            if not detail:
+                raise CustomException("Cotización no encontrada.")
+            h = detail["header"]
+            items = detail["items"]
+            labor_items = self.querys.get_quotation_labor(source_id)
+
+            # --- Obtener nueva numeración para la misma planta ---
+            plant = self.querys.get_plant_for_update(h.plant_id)
+            if not plant:
+                raise CustomException("Planta no encontrada.")
+            new_number = f"{plant.prefix}-{plant.consecutive:05d}"
+            plant.consecutive += 1
+
+            # --- Crear cabecera de la nueva cotización ---
+            new_header = {
+                "plant_id": h.plant_id,
+                "quotation_number": new_number,
+                "city": h.city,
+                "activity_date": h.activity_date,
+                "client_id": h.client_id,
+                "client_line_id": h.client_line_id,
+                "responsible_id": h.responsible_id,
+                "directed_to": h.directed_to,
+                "phone": h.phone,
+                "nit": h.nit,
+                "component_id": h.component_id,
+                "executed": h.executed,
+                "scope": h.scope,
+                "delivery_time": h.delivery_time,
+                "activity_description": h.activity_description,
+                "execution_place": h.execution_place,
+                "subtotal": float(h.subtotal or 0),
+                "subtotal_with_iva": float(h.subtotal_with_iva or 0),
+                "user_id": int(data["user_id"]),
+            }
+            new_id = self.querys.insert_data(QuotationModel, new_header)
+            self.querys.db.commit()
+
+            # --- Copiar items (todos los tipos excepto fotos) ---
+            item_counter = 1
+            for i in items:
+                item_data = {
+                    "quotation_id": new_id,
+                    "item_order": item_counter if i.item_type == "item" else None,
+                    "sap_code": i.sap_code,
+                    "description": i.description,
+                    "unit": i.unit,
+                    "quantity": float(i.quantity),
+                    "unit_price": float(i.unit_price),
+                    "total_price": float(i.total_price),
+                    "surcharge_percent": float(i.surcharge_percent) if i.surcharge_percent else None,
+                    "row_description": i.row_description,
+                    "item_type": i.item_type,
+                }
+                self.querys.insert_data(QuotationItemModel, item_data)
+                if i.item_type == "item":
+                    item_counter += 1
+
+            # --- Copiar mano de obra ---
+            for l in labor_items:
+                self.querys.insert_data(QuotationLaborModel, {
+                    "quotation_id": new_id,
+                    "labor_type_id": l.labor_type_id,
+                    "quantity": float(l.quantity),
+                    "unit_price": float(l.unit_price),
+                    "total_price": float(l.total_price),
+                    "description": l.row_description,
+                })
+
+            # --- Crear SC asociado ---
+            original_sc = self.querys.db.query(ServiceControlModel).filter(
+                ServiceControlModel.quotation == h.quotation_number,
+                ServiceControlModel.status == 1,
+            ).first()
+
+            sc_data = {
+                "activity_date": h.activity_date,
+                "client_id": h.client_id,
+                "client_line_id": h.client_line_id,
+                "responsible_id": h.responsible_id,
+                "description": h.activity_description,
+                "information": h.scope,
+                "service_order": None,
+                "quotation": new_number,
+                "component": h.component_id,
+                "component_quantity": 0,
+                "value": float(h.subtotal or 0),
+                "solped": None,
+                "oc": None,
+                "position": None,
+                "service_status": original_sc.service_status if original_sc else 1,
+                "report_status": 0,
+                "consecutive": None,
+                "invoice": None,
+                "invoice_date": None,
+                "note": None,
+                "hes": None,
+                "gestor": None,
+                "report_id": None,
+                "user_id": int(data["user_id"]),
+            }
+            self.querys.insert_data(ServiceControlModel, sc_data)
+
+            return self.tools.output(200, "Cotización duplicada correctamente.", {
+                "quotation_id": new_id,
+                "quotation_number": new_number,
+            })
+
+        except CustomException as ex:
+            raise ex
+        except Exception as ex:
+            traceback.print_exc()
+            raise CustomException(str(ex))
+
     def list_quotations(self, data: dict):
         try:
             limit = int(data["limit"])
@@ -571,6 +691,7 @@ class Quotation:
                     "quotation_number": q.quotation_number,
                     "city": q.city,
                     "activity_date": str(q.activity_date),
+                    "activity_description": q.activity_description or "",
                     "client_name": q.client_name,
                     "client_line_name": q.client_line_name,
                     "responsible_name": q.responsible_name,
