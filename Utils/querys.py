@@ -31,6 +31,7 @@ from Models.quotation_labor_model import QuotationLaborModel
 from Models.quotation_photos_model import QuotationPhotosModel
 from Models.components_model import ComponentsModel
 from Models.equipment_tools_model import EquipmentToolsModel
+from Models.service_activities_model import ServiceActivitiesModel
 from datetime import datetime
 from sqlalchemy import func, and_, or_, cast, Integer
 
@@ -1930,6 +1931,22 @@ class Querys:
                 "id": key.id,
                 "name": key.name,
                 "unit": key.unit,
+                "unit_price": float(key.unit_price),
+            })
+
+        return response
+
+    def get_service_activities(self):
+        response = []
+        query = self.db.query(ServiceActivitiesModel).filter(
+            ServiceActivitiesModel.status == 1
+        ).order_by(ServiceActivitiesModel.description.asc()).all()
+
+        for key in query:
+            response.append({
+                "id": key.id,
+                "sap_code": key.sap_code,
+                "description": key.description,
                 "unit_price": float(key.unit_price),
             })
 

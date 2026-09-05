@@ -75,3 +75,8 @@ class Param:
 
         equipment_tools = self.querys.get_equipment_tools()
         return self.tools.output(200, "Ok.", equipment_tools)
+
+    def get_service_activities(self):
+
+        service_activities = self.querys.get_service_activities()
+        return self.tools.output(200, "Ok.", service_activities)

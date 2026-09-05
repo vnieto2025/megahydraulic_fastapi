@@ -89,3 +89,9 @@ def get_components(request: Request, db: Session = Depends(get_db)):
 def get_equipment_tools(request: Request, db: Session = Depends(get_db)):
     response = Param(db).get_equipment_tools()
     return response
+
+@param_router.post('/params/get_service_activities', tags=["Params"], response_model=dict, dependencies=[Depends(JWTBearer(required_roles=[1, 2]))])
+@http_decorator
+def get_service_activities(request: Request, db: Session = Depends(get_db)):
+    response = Param(db).get_service_activities()
+    return response

@@ -281,6 +281,10 @@ class ServiceControl:
         if page_position <= 0:
             raise CustomException("El campo posición no es válido")
 
+        # Filtro por descripción (búsqueda parcial, sin importar mayúsculas/minúsculas)
+        if filters.get("description"):
+            data_filter.append(ServiceControlModel.description.ilike(f"%{filters['description']}%"))
+
         # Filtro por rango de fechas (el frontend envía YYYY-MM-DD)
         if filters.get("start_date"):
             start = datetime.strptime(filters["start_date"], "%Y-%m-%d").date()
@@ -445,6 +449,8 @@ class ServiceControl:
         filters = data.get("filters", {})
         data_filter = []
 
+        if filters.get("description"):
+            data_filter.append(ServiceControlModel.description.ilike(f"%{filters['description']}%"))
         if filters.get("start_date"):
             data_filter.append(ServiceControlModel.activity_date >= datetime.strptime(filters["start_date"], "%Y-%m-%d").date())
         if filters.get("end_date"):

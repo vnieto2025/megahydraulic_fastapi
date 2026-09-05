@@ -9,6 +9,7 @@ from Router.Report import report_router
 from Router.Client import client_router
 from Router.ServiceControl import service_control_router
 from Router.Quotation import quotation_router
+from Router.CatalogParams import catalog_params_router
 from pathlib import Path
 
 
@@ -35,5 +36,6 @@ app.include_router(report_router)
 app.include_router(client_router)
 app.include_router(service_control_router)
 app.include_router(quotation_router)
+app.include_router(catalog_params_router)
 
 BASE.metadata.create_all(bind=engine)
