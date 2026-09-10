@@ -63,7 +63,17 @@ class CatalogParams:
         values = data.get("data", {})
 
         try:
-            record = model()
+            # Los modelos no tienen todos la misma firma de constructor: algunos
+            # usan el constructor por defecto de SQLAlchemy (**kwargs), otros
+            # definen __init__(self, data: dict) y leen algunas claves con
+            # data['x'] (sin default), así que probamos las tres formas.
+            try:
+                record = model(**values)
+            except TypeError:
+                try:
+                    record = model(values)
+                except TypeError:
+                    record = model()
             for field in fields:
                 if field in values:
                     setattr(record, field, values[field])
