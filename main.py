@@ -41,5 +41,9 @@ app.include_router(catalog_params_router)
 BASE.metadata.create_all(bind=engine)
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # En el droplet no se define APP_ENV, así que por defecto arranca sin --reload
+    # (seguro para producción). En local, .env trae APP_ENV=development.
+    is_dev = os.getenv("APP_ENV", "production") == "development"
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=is_dev)
