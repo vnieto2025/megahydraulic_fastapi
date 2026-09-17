@@ -36,6 +36,10 @@ class ServiceControlModel(BASE):
     user_id = Column(BigInteger, nullable=False)
     status = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(), default=datetime.now(), nullable=False)
+    # Se actualiza solo por un trigger de MySQL cuando cambia service_status
+    # o report_status (ver status_changed_at_trigger.sql). No se toca desde
+    # el código: así no depende de que cada endpoint se acuerde de setearlo.
+    status_changed_at = Column(DateTime(), nullable=True)
 
     def __init__(self, data: dict):
         self.activity_date = data['activity_date']
