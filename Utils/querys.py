@@ -1875,6 +1875,10 @@ class Querys:
             if client_id and str(client_id) != "":
                 query = query.filter(QuotationModel.client_id == int(client_id))
 
+            responsible_id = filters.get("responsible_id", "")
+            if responsible_id and str(responsible_id) != "":
+                query = query.filter(QuotationModel.responsible_id == int(responsible_id))
+
             plant_id = filters.get("plant_id", "")
             if plant_id and str(plant_id) != "":
                 query = query.filter(QuotationModel.plant_id == int(plant_id))
