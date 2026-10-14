@@ -307,7 +307,7 @@ class Quotation:
                         "total_price": float(i.total_price),
                         "item_type": i.item_type,
                     }
-                    for i in items if i.item_type in ("item", "logistics", "surcharge", "auto_labor", "auto_materials")
+                    for i in items if i.item_type in ("item", "logistics", "surcharge", "auto_labor", "auto_materials", "auto_recargo")
                 ],
                 "material_items": [
                     {

@@ -269,7 +269,7 @@ class QuotationPDF:
         # ── Data rows ───────────────────────────────────────────────────────
         all_items = d.get("items", [])
         # Separate by type
-        regular = [i for i in all_items if i["item_type"] in ("item", "auto_labor", "auto_materials")]
+        regular = [i for i in all_items if i["item_type"] in ("item", "auto_labor", "auto_materials", "auto_recargo")]
         logistics = next((i for i in all_items if i["item_type"] == "logistics"), None)
         surcharge = next((i for i in all_items if i["item_type"] == "surcharge"), None)
 
