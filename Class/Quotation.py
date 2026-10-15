@@ -413,7 +413,13 @@ class Quotation:
                     ServiceControlModel.status == 1,
                 ).first()
                 if sc:
-                    sc_sync = {"activity_date": data_update["activity_date"], "client_id": data_update["client_id"]}
+                    sc_sync = {
+                        "activity_date": data_update["activity_date"],
+                        "client_id": data_update["client_id"],
+                        "description": data_update["activity_description"],
+                        "information": data_update["scope"],
+                        "value": data_update["subtotal"],
+                    }
                     if data_update["client_line_id"] is not None:
                         sc_sync["client_line_id"] = data_update["client_line_id"]
                     if data_update["responsible_id"] is not None:
