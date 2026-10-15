@@ -404,6 +404,22 @@ class Quotation:
             }
             self.querys.update_quotation(quotation_id, data_update)
 
+            # Si hay un Control de Servicio asociado (mismo numero de cotizacion),
+            # se sincronizan los campos homogeneos entre ambos.
+            h = self.querys.db.query(QuotationModel).filter(QuotationModel.id == quotation_id).first()
+            if h:
+                sc = self.querys.db.query(ServiceControlModel).filter(
+                    ServiceControlModel.quotation == h.quotation_number,
+                    ServiceControlModel.status == 1,
+                ).first()
+                if sc:
+                    sc_sync = {"activity_date": data_update["activity_date"], "client_id": data_update["client_id"]}
+                    if data_update["client_line_id"] is not None:
+                        sc_sync["client_line_id"] = data_update["client_line_id"]
+                    if data_update["responsible_id"] is not None:
+                        sc_sync["responsible_id"] = data_update["responsible_id"]
+                    self.querys.update_service_control(sc.id, sc_sync)
+
             self.querys.deactivate_quotation_items(quotation_id)
             items = data.get("items", [])
             item_counter = 1
