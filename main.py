@@ -10,6 +10,7 @@ from Router.Client import client_router
 from Router.ServiceControl import service_control_router
 from Router.Quotation import quotation_router
 from Router.CatalogParams import catalog_params_router
+from Router.AI import ai_router
 from pathlib import Path
 
 
@@ -37,6 +38,7 @@ app.include_router(client_router)
 app.include_router(service_control_router)
 app.include_router(quotation_router)
 app.include_router(catalog_params_router)
+app.include_router(ai_router)
 
 BASE.metadata.create_all(bind=engine)
 

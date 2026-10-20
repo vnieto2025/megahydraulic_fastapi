@@ -12,6 +12,7 @@ greenlet==3.5.6
 h11==0.16.0
 idna==3.18
 MarkupSafe==3.0.3
+openai==3.35.1
 openpyxl==3.1.5
 pillow==12.3.0
 pydantic==2.13.5

@@ -10,6 +10,7 @@ from Models.task_list_by_equipment_model import TaskListEquipmentModel
 from Models.equipment_tools_model import EquipmentToolsModel
 from Models.service_activities_model import ServiceActivitiesModel
 from Models.labor_type_model import LaborTypeModel
+from Models.ai_agent_config_model import AIAgentConfigModel
 
 CATALOG_REGISTRY = {
     "type_service":      {"model": TypeServiceModel,      "fields": ["name"]},
@@ -21,6 +22,7 @@ CATALOG_REGISTRY = {
     "equipment_tools":    {"model": EquipmentToolsModel,   "fields": ["name", "unit", "unit_price"]},
     "service_activities": {"model": ServiceActivitiesModel, "fields": ["sap_code", "description", "unit_price"]},
     "labor_types":        {"model": LaborTypeModel,        "fields": ["code", "description", "unit", "value"]},
+    "ai_agent_config":    {"model": AIAgentConfigModel,    "fields": []},
 }
 
 
