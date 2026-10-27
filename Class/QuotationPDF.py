@@ -1,5 +1,6 @@
 import os
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from PIL import Image as PILImage
 from reportlab.lib import colors
@@ -34,7 +35,8 @@ def _fc(value):
 
 
 def _p(text, style):
-    return Paragraph(str(text or ""), style)
+    # Paragraph interpreta el texto como markup: un "<" o "&" escrito por el usuario rompe el parseo.
+    return Paragraph(escape(str(text or "")), style)
 
 
 class QuotationPDF:
